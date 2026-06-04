@@ -11,7 +11,7 @@ class ShiftManagerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Shift Manager',
+      title: 'Enterprise Shift Engine',
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF7F9FA),
@@ -19,575 +19,459 @@ class ShiftManagerApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF141927),
           primary: const Color(0xFF141927),
-          secondary: const Color(0xFFC7A97A),
+          secondary: const Color(0xFFC7A97A), // Signature Gold
         ),
       ),
-      home: const MainAppShell(),
+      home: const AuthGate(), // Starts at the login interceptor
     );
   }
 }
 
-class MainAppShell extends StatefulWidget {
-  const MainAppShell({super.key});
+// ==========================================
+// 1. THE AUTHENTICATION GATE (LOGIN)
+// ==========================================
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
 
   @override
-  State<MainAppShell> createState() => _MainAppShellState();
+  State<AuthGate> createState() => _AuthGateState();
 }
 
-class _MainAppShellState extends State<MainAppShell> {
-  int _currentIndex = 0;
+class _AuthGateState extends State<AuthGate> {
+  bool _isLoggedIn = false;
+  String _userRole = ''; // 'admin' or 'employee'
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const ScheduleScreen(),
-    const DirectoryScreen(),
-    const SettingsScreen(),
-  ];
+  void _login(String username, String password) {
+    // Hardcoded logic for frontend testing
+    if (username.toLowerCase() == 'admin' && password == 'admin123') {
+      setState(() {
+        _userRole = 'admin';
+        _isLoggedIn = true;
+      });
+    } else if (username.toLowerCase() == 'crew' && password == 'crew123') {
+      setState(() {
+        _userRole = 'employee';
+        _isLoggedIn = true;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid credentials. Try admin/admin123 or crew/crew123'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _logout() {
+    setState(() {
+      _isLoggedIn = false;
+      _userRole = '';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isLoggedIn) {
+      return LoginScreen(onLogin: _login);
+    }
+
+    // Route based on role
+    if (_userRole == 'admin') {
+      return AdminShell(onLogout: _logout);
+    } else {
+      return EmployeeShell(onLogout: _logout);
+    }
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  final Function(String, String) onLogin;
+  const LoginScreen({super.key, required this.onLogin});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _userController = TextEditingController();
+  final _passController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF141927),
       body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _screens,
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
-          ),
-          boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.white,
-            selectedItemColor: const Color(0xFF141927),
-            unselectedItemColor: Colors.grey[500],
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-            elevation: 0,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Dashboard'),
-              BottomNavigationBarItem(icon: Icon(Icons.calendar_today_rounded), label: 'Schedule'),
-              BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), label: 'Directory'),
-              BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==========================================
-// 1. DASHBOARD SCREEN
-// ==========================================
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tuesday, June 2',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.secondary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Welcome back,\nBasnet',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, height: 1.1, color: Color(0xFF141927)),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200)),
-              child: const Stack(
-                children: [
-                  Icon(Icons.notifications_none_rounded, size: 28),
-                  Positioned(right: 2, top: 2, child: CircleAvatar(radius: 4, backgroundColor: Colors.redAccent))
-                ],
-              ),
-            )
-          ],
-        ),
-        const SizedBox(height: 32),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF141927),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: const Color(0xFF141927).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 6))]
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('On Shift Now', style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 20),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        const Text('5', style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
-                        Text(' /7', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 18, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))]
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Pending\nApprovals', style: TextStyle(color: Colors.blueGrey, fontSize: 15, fontWeight: FontWeight.w500, height: 1.2)),
-                    SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text('3', style: TextStyle(color: Color(0xFF141927), fontSize: 40, fontWeight: FontWeight.bold)),
-                        SizedBox(width: 4),
-                        Text('requests', style: TextStyle(color: Colors.blueGrey, fontSize: 14, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
-        const Text('QUICK ACTIONS', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildActionIcon(Icons.add, 'Create\nShift'),
-              _buildActionIcon(Icons.sync_rounded, 'Find\nCover'),
-              _buildActionIcon(Icons.chat_bubble_outline_rounded, 'Message\nTeam'),
-              _buildActionIcon(Icons.description_outlined, 'Daily\nReport'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('LIVE ROSTER', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-            Text('View All', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary)),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildRosterRow('Elena Valdes', 'Front Register', '14:00 - 22:00', true, "EV", Colors.blue.shade100),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 80),
-              _buildRosterRow('Marcus Thorne', 'Drive-Thru', '15:00 - 23:00', true, "MT", Colors.orange.shade100),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 80),
-              _buildRosterRow('Sarah Jenkins', 'Assembly Line', '16:00 - 00:00', false, "SJ", Colors.purple.shade100),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: const Color(0xFFC7A97A).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(16)),
+                child: const Icon(Icons.lock_person_rounded, color: Color(0xFFC7A97A), size: 40),
+              ),
+              const SizedBox(height: 24),
+              const Text('System Access', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              const Text('Enter operations credentials to continue.', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const SizedBox(height: 48),
+              TextField(
+                controller: _userController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  hintText: 'Username (admin or crew)',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  hintText: 'Password',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () => widget.onLogin(_userController.text, _passController.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFC7A97A),
+                  foregroundColor: const Color(0xFF141927),
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Text('Authenticate', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
-        )
-      ],
+        ),
+      ),
     );
   }
+}
 
-  Widget _buildActionIcon(IconData icon, String label) {
-    return Column(
+// ==========================================
+// 2. ADMIN ENVIRONMENT
+// ==========================================
+class AdminShell extends StatefulWidget {
+  final VoidCallback onLogout;
+  const AdminShell({super.key, required this.onLogout});
+
+  @override
+  State<AdminShell> createState() => _AdminShellState();
+}
+
+class _AdminShellState extends State<AdminShell> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      const AdminDashboard(),
+      const AdminTeamManager(),
+      Center(
+        child: ElevatedButton(
+          onPressed: widget.onLogout,
+          child: const Text('Admin Logout'),
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      body: SafeArea(child: IndexedStack(index: _currentIndex, children: screens)),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF141927),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Command'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Crew Config'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+      ),
+    );
+  }
+}
+
+class AdminDashboard extends StatelessWidget {
+  const AdminDashboard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
       children: [
+        const Text('Enterprise Command', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 24),
         Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Colors.grey.shade50, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200)),
-          child: Icon(icon, color: const Color(0xFF141927), size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueGrey)),
-      ],
-    );
-  }
-
-  Widget _buildRosterRow(String name, String role, String time, bool isClockedIn, String initials, Color color) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Stack(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: const Color(0xFF141927), borderRadius: BorderRadius.circular(24)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(radius: 24, backgroundColor: color, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87))),
-              if (isClockedIn)
-                Positioned(bottom: 0, right: 0, child: Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF141927))),
-                Text(role, style: const TextStyle(color: Colors.blueGrey, fontSize: 13)),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(time, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF141927))),
-              Text(isClockedIn ? 'Clocked in' : 'Scheduled', style: TextStyle(color: isClockedIn ? Colors.blueGrey : Colors.grey, fontSize: 12)),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// 2. SCHEDULE SCREEN
-// ==========================================
-class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key});
-
-  @override
-  State<ScheduleScreen> createState() => _ScheduleScreenState();
-}
-
-class _ScheduleScreenState extends State<ScheduleScreen> {
-  int _selectedDateIndex = 2; 
-
-  final List<Map<String, String>> _dates = [
-    {'day': 'Sun', 'date': '31'}, {'day': 'Mon', 'date': '1'}, {'day': 'Tue', 'date': '2'},
-    {'day': 'Wed', 'date': '3'}, {'day': 'Thu', 'date': '4'}, {'day': 'Fri', 'date': '5'}, {'day': 'Sat', 'date': '6'},
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      children: [
-        const Text('Master Schedule', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF141927))),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 80,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _dates.length,
-            itemBuilder: (context, index) {
-              final isSelected = index == _selectedDateIndex;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedDateIndex = index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 60,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF141927) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isSelected ? const Color(0xFF141927) : Colors.grey.shade200),
-                    boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF141927).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_dates[index]['day']!, style: TextStyle(color: isSelected ? Colors.white70 : Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text(_dates[index]['date']!, style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF141927), fontSize: 20, fontWeight: FontWeight.w900)),
-                    ],
-                  ),
+              const Text('Labor Efficiency Target', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              const SizedBox(height: 12),
+              const Text('18.4%', style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Executing AI Schedule Optimization...')));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFC7A97A),
+                  foregroundColor: const Color(0xFF141927),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: () {},
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.secondary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 56),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 0,
-          ),
-          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add, size: 20), SizedBox(width: 8), Text('Create New Shift', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))]),
-        ),
-        const SizedBox(height: 32),
-        const Text('FRONT COUNTER', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-        const SizedBox(height: 16),
-        _buildShiftCard('Elena Valdes', '14:00 - 22:00', "EV", Colors.blue.shade100),
-        const SizedBox(height: 12),
-        _buildShiftCard('James Chen', '18:00 - 02:00', "JC", Colors.green.shade100),
-        const SizedBox(height: 12),
-        _buildShiftCard('Maria Santos', '20:00 - 04:00', "MS", Colors.pink.shade100),
-        const SizedBox(height: 32),
-        const Text('KITCHEN CREW', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-        const SizedBox(height: 16),
-        _buildShiftCard('Marcus Thorne', '15:00 - 23:00', "MT", Colors.orange.shade100),
-        const SizedBox(height: 12),
-        _buildShiftCard('Sarah Jenkins', '06:00 - 14:00', "SJ", Colors.purple.shade100),
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
-  Widget _buildShiftCard(String name, String time, String initials, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
-      child: Row(
-        children: [
-          CircleAvatar(radius: 26, backgroundColor: color, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87))),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF141927))),
-                const SizedBox(height: 4),
-                Row(children: [const Icon(Icons.access_time_rounded, size: 14, color: Colors.blueGrey), const SizedBox(width: 4), Text(time, style: const TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w500))]),
-              ],
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade300)),
-            child: IconButton(icon: const Icon(Icons.edit_outlined, size: 20), color: const Color(0xFF141927), onPressed: () {}),
-          )
-        ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// 3. DIRECTORY SCREEN
-// ==========================================
-class DirectoryScreen extends StatelessWidget {
-  const DirectoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      children: [
-        const Text('Team Directory', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF141927))),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
-                child: TextField(
-                  decoration: InputDecoration(
-                    icon: Icon(Icons.search, color: Colors.grey.shade400),
-                    hintText: 'Search staff...',
-                    hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
-              child: Icon(Icons.filter_list_rounded, color: Colors.grey.shade600),
-            )
-          ],
-        ),
-        const SizedBox(height: 32),
-        const Text('MANAGEMENT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-        const SizedBox(height: 16),
-        _buildDirectoryCard('Basnet', 'Shift Supervisor', '+1 555-0100', "B", Colors.teal.shade100, isManager: true),
-        const SizedBox(height: 32),
-        const Text('FRONT COUNTER', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-        const SizedBox(height: 16),
-        _buildDirectoryCard('James Chen', 'Cashier', '+1 555-0104', "JC", Colors.green.shade100),
-        const SizedBox(height: 12),
-        _buildDirectoryCard('Elena Valdes', 'Shift Lead', '+1 555-0101', "EV", Colors.blue.shade100),
-        const SizedBox(height: 12),
-        _buildDirectoryCard('Maria Santos', 'Drive-Thru', '+1 555-0106', "MS", Colors.pink.shade100),
-        const SizedBox(height: 32),
-        const Text('KITCHEN CREW', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF141927))),
-        const SizedBox(height: 16),
-        _buildDirectoryCard('Marcus Thorne', 'Grill Cook', '+1 555-0108', "MT", Colors.orange.shade100),
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
-  Widget _buildDirectoryCard(String name, String role, String phone, String initials, Color color, {bool isManager = false}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
-      child: Row(
-        children: [
-          CircleAvatar(radius: 26, backgroundColor: color, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87))),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF141927))),
-                Text(role, style: TextStyle(color: isManager ? const Color(0xFFC7A97A) : Colors.blueGrey, fontSize: 13, fontWeight: isManager ? FontWeight.bold : FontWeight.normal)),
-                const SizedBox(height: 2),
-                Text(phone, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.phone_outlined, size: 18, color: Colors.green),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                child: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF141927)),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// 4. SETTINGS SCREEN
-// ==========================================
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      children: [
-        Center(
-          child: Stack(
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.teal.shade100,
-                child: const Text("B", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black87)),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200)),
-                  child: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF141927)),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.auto_awesome),
+                    SizedBox(width: 8),
+                    Text('Run AI Auto-Scheduler', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
                 ),
               )
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        const Center(child: Text('Supervisor Basnet', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF141927)))),
-        const SizedBox(height: 4),
-        const Center(child: Text('Shift Supervisor', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFC7A97A)))),
-        const SizedBox(height: 40),
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
-          child: Column(
-            children: [
-              _buildSettingsRow(Icons.person_outline_rounded, 'Account Settings'),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 60),
-              _buildSettingsRow(Icons.store_outlined, 'App Preferences'),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 60),
-              _buildSettingsRow(Icons.notifications_none_rounded, 'Notification Rules'),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 60),
-              _buildSettingsRow(Icons.link_rounded, 'Staff Invite Links'),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 60),
-              _buildSettingsRow(Icons.download_rounded, 'Export Payroll Data'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        OutlinedButton(
-          onPressed: () {},
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 56),
-            side: const BorderSide(color: Colors.redAccent),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.logout_rounded, color: Colors.redAccent),
-              SizedBox(width: 8),
-              Text('Log Out', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 32),
+        const Text('QUICK CREATE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildAdminAction(Icons.person_add, 'New Crew\nAccount')),
+            const SizedBox(width: 12),
+            Expanded(child: _buildAdminAction(Icons.calendar_month, 'Publish\nShift')),
+          ],
+        )
       ],
     );
   }
 
-  Widget _buildSettingsRow(IconData icon, String title) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+  Widget _buildAdminAction(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: Colors.grey.shade50, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200)),
-            child: Icon(icon, color: const Color(0xFF141927), size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF141927)))),
-          Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+          Icon(icon, color: const Color(0xFF141927), size: 32),
+          const SizedBox(height: 8),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         ],
       ),
+    );
+  }
+}
+
+class AdminTeamManager extends StatelessWidget {
+  const AdminTeamManager({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Text('Crew Accounts', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          const Text('Manage active employee credentials and permissions.', style: TextStyle(color: Colors.blueGrey)),
+          const SizedBox(height: 24),
+          _buildCrewCard(context, 'James Chen', 'Cashier', 'Pass: crew123'),
+          const SizedBox(height: 12),
+          _buildCrewCard(context, 'Elena Valdes', 'Shift Lead', 'Pass: ev_lead99'),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // Open account creation modal
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (context) => const CreateAccountModal(),
+          );
+        },
+        backgroundColor: const Color(0xFFC7A97A),
+        icon: const Icon(Icons.add, color: Color(0xFF141927)),
+        label: const Text('Create Account', style: TextStyle(color: Color(0xFF141927), fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildCrewCard(BuildContext context, String name, String role, String password) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(role, style: const TextStyle(color: Colors.blueGrey, fontSize: 13)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                child: Text(password, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+              )
+            ],
+          ),
+          IconButton(icon: const Icon(Icons.edit), onPressed: () {})
+        ],
+      ),
+    );
+  }
+}
+
+class CreateAccountModal extends StatelessWidget {
+  const CreateAccountModal({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('New Crew Account', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          const TextField(decoration: InputDecoration(labelText: 'Full Name', border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          const TextField(decoration: InputDecoration(labelText: 'Role (e.g. Grill, Register)', border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          const TextField(decoration: InputDecoration(labelText: 'Temporary Password', border: OutlineInputBorder())),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50),
+              backgroundColor: const Color(0xFF141927),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Generate Account'),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 3. EMPLOYEE ENVIRONMENT
+// ==========================================
+class EmployeeShell extends StatefulWidget {
+  final VoidCallback onLogout;
+  const EmployeeShell({super.key, required this.onLogout});
+
+  @override
+  State<EmployeeShell> createState() => _EmployeeShellState();
+}
+
+class _EmployeeShellState extends State<EmployeeShell> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      const EmployeeDashboard(),
+      Center(
+        child: ElevatedButton(
+          onPressed: widget.onLogout,
+          child: const Text('Crew Logout'),
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      body: SafeArea(child: IndexedStack(index: _currentIndex, children: screens)),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF141927),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.timer), label: 'Terminal'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
+
+class EmployeeDashboard extends StatelessWidget {
+  const EmployeeDashboard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const Text('Crew Terminal', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+          child: Column(
+            children: [
+              const Icon(Icons.fingerprint, size: 48, color: Color(0xFFC7A97A)),
+              const SizedBox(height: 16),
+              const Text('Ready to clock in for your shift?', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clocked into Front Counter.')));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF141927),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Text('Clock In - Front Counter', style: TextStyle(fontSize: 16)),
+              )
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        const Text('YOUR UPCOMING SCHEDULE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Tomorrow', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('Cashier • 14:00 - 22:00', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                ],
+              ),
+              OutlinedButton(onPressed: () {}, child: const Text('Offer Swap'))
+            ],
+          ),
+        )
+      ],
     );
   }
 }
