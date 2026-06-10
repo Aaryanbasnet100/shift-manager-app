@@ -31,7 +31,12 @@ final Map<String, Map<String, String>> dict = {
     'vac_requests': 'VACATION REQUESTS', 'deny': 'DENY', 'denied': 'Denied',
     'reason_note': 'Reason note (optional)', 'no_requests': 'No pending requests.',
     'post': 'POST ANNOUNCEMENT', 'announcement_hint': 'Write an announcement...', 'no_announcements': 'No announcements yet.',
-    'access_level': 'Access Level', 'role_employee': 'Employee', 'role_manager': 'Manager'
+    'access_level': 'Access Level', 'role_employee': 'Employee', 'role_manager': 'Manager',
+    'dashboard': 'Dashboard', 'on_shift_now': 'ON SHIFT NOW', 'shifts_today': 'SHIFTS TODAY',
+    'pending_requests': 'PENDING REQUESTS', 'team_size': 'TEAM SIZE', 'todays_coverage': "TODAY'S COVERAGE",
+    'no_shifts_today': 'No shifts scheduled today.', 'next_shift': 'NEXT SHIFT', 'no_upcoming': 'No upcoming shifts.',
+    'hours_this_week': 'HOURS THIS WEEK', 'my_pending': 'MY PENDING REQUESTS', 'starts_in': 'Starts in',
+    'on_shift_badge': 'ON SHIFT', 'days_short': 'd', 'hours_short': 'h', 'min_short': 'm'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -58,7 +63,12 @@ final Map<String, Map<String, String>> dict = {
     'vac_requests': 'URLAUBSANFRAGEN', 'deny': 'ABLEHNEN', 'denied': 'Abgelehnt',
     'reason_note': 'Begründung (optional)', 'no_requests': 'Keine ausstehenden Anfragen.',
     'post': 'ANKÜNDIGUNG SENDEN', 'announcement_hint': 'Ankündigung schreiben...', 'no_announcements': 'Noch keine Ankündigungen.',
-    'access_level': 'Zugriffsstufe', 'role_employee': 'Mitarbeiter', 'role_manager': 'Manager'
+    'access_level': 'Zugriffsstufe', 'role_employee': 'Mitarbeiter', 'role_manager': 'Manager',
+    'dashboard': 'Übersicht', 'on_shift_now': 'JETZT IM DIENST', 'shifts_today': 'SCHICHTEN HEUTE',
+    'pending_requests': 'OFFENE ANFRAGEN', 'team_size': 'TEAMGRÖSSE', 'todays_coverage': 'HEUTIGE ABDECKUNG',
+    'no_shifts_today': 'Heute keine Schichten geplant.', 'next_shift': 'NÄCHSTE SCHICHT', 'no_upcoming': 'Keine anstehenden Schichten.',
+    'hours_this_week': 'STUNDEN DIESE WOCHE', 'my_pending': 'MEINE OFFENEN ANFRAGEN', 'starts_in': 'Beginnt in',
+    'on_shift_badge': 'IM DIENST', 'days_short': 'T', 'hours_short': 'Std', 'min_short': 'Min'
   }
 };
 

@@ -2,8 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
+import '../services/austria_time.dart';
 import '../services/shift_conflict_engine.dart';
+import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
+import '../widgets/neon_stat_card.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
 
@@ -37,7 +40,7 @@ class _ManagerShellState extends State<ManagerShell> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [_buildTeamTab(), _buildScheduleTab(), _buildRequestsTab(), _buildAnnounceTab()];
+    final screens = [_buildDashboardTab(), _buildTeamTab(), _buildScheduleTab(), _buildRequestsTab(), _buildAnnounceTab()];
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background, elevation: 0,
@@ -54,12 +57,80 @@ class _ManagerShellState extends State<ManagerShell> {
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.background, selectedItemColor: AppColors.neonCyan, unselectedItemColor: Colors.white38,
         items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.space_dashboard), label: t('dashboard')),
           BottomNavigationBarItem(icon: const Icon(Icons.groups_2), label: t('my_team')),
           BottomNavigationBarItem(icon: const Icon(Icons.calendar_view_week), label: t('schedule')),
           BottomNavigationBarItem(icon: const Icon(Icons.how_to_reg), label: t('requests')),
           BottomNavigationBarItem(icon: const Icon(Icons.campaign), label: t('announce')),
         ],
       ),
+    );
+  }
+
+  // --- Tab 0: Dashboard (Feature 1) -------------------------------------
+  Widget _buildDashboardTab() {
+    final now = austriaNow();
+    final todayShifts = widget.shifts.where((s) => s.dayOfMonth == now.day).toList();
+    final onShiftNow = todayShifts.where((s) => isShiftActiveNow(s, now)).length;
+    final pendingVacs = widget.vacations.where((v) => v.status == 'Pending').length;
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text(t('dashboard'), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+        const SizedBox(height: 24),
+        GridView.count(
+          crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.5,
+          children: [
+            NeonStatCard(icon: Icons.people_alt, value: onShiftNow, label: t('on_shift_now')),
+            NeonStatCard(icon: Icons.event_available, value: todayShifts.length, label: t('shifts_today')),
+            StreamBuilder<QuerySnapshot>(
+              stream: _wsDoc.collection('swapRequests').where('status', isEqualTo: 'pending').snapshots(),
+              builder: (context, snap) {
+                final pendingSwaps = snap.hasData ? snap.data!.docs.length : 0;
+                return NeonStatCard(icon: Icons.how_to_reg, value: pendingSwaps + pendingVacs, label: t('pending_requests'), alert: true, onTap: () => setState(() => _tabIndex = 3));
+              },
+            ),
+            NeonStatCard(icon: Icons.groups_2, value: widget.employees.length, label: t('team_size'), onTap: () => setState(() => _tabIndex = 1)),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Text(t('todays_coverage'), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        const SizedBox(height: 16),
+        if (todayShifts.isEmpty) Text(t('no_shifts_today'), style: const TextStyle(color: Colors.white54)),
+        ...todayShifts.map((s) {
+          final active = isShiftActiveNow(s, now);
+          return InkWell(
+            onTap: () => _openEditShiftSheet(s),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: active ? AppColors.neonCyan : Colors.white.withValues(alpha: 0.05))),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(s.employeeName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text(s.timeWindow, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  if (active)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(gradient: AppColors.neonGradient, borderRadius: BorderRadius.circular(6)),
+                      child: Text(t('on_shift_badge'), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 

@@ -3,9 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
+import '../services/austria_time.dart';
 import '../services/shift_conflict_engine.dart';
+import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
 import '../widgets/neon_calendar.dart';
+import '../widgets/neon_stat_card.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
 
@@ -37,11 +40,11 @@ class _EmployeeShellState extends State<EmployeeShell> {
     super.dispose();
   }
 
-  // Feature 2: Real-Time Auto-Switching CET/CEST Clock
+  // Feature 2: Real-Time Auto-Switching CET/CEST Clock (logic shared via services/austria_time.dart)
   void _updateTime() {
-    final now = DateTime.now().toUtc();
-    bool isSummerTime = _isCEST(now);
-    final austriaTime = now.add(Duration(hours: isSummerTime ? 2 : 1));
+    final utcNow = DateTime.now().toUtc();
+    bool isSummerTime = isCEST(utcNow);
+    final austriaTime = utcNow.add(Duration(hours: isSummerTime ? 2 : 1));
     if (mounted) {
       setState(() {
         _currentTimeStr = "${austriaTime.hour.toString().padLeft(2, '0')}:${austriaTime.minute.toString().padLeft(2, '0')}:${austriaTime.second.toString().padLeft(2, '0')} ${isSummerTime ? 'CEST' : 'CET'}";
@@ -49,17 +52,9 @@ class _EmployeeShellState extends State<EmployeeShell> {
     }
   }
 
-  bool _isCEST(DateTime utcNow) {
-    if (utcNow.month > 3 && utcNow.month < 10) return true;
-    if (utcNow.month < 3 || utcNow.month > 10) return false;
-    int previousSunday(int y, int m, int d) => d - DateTime.utc(y, m, d).weekday;
-    if (utcNow.month == 3) return utcNow.day >= previousSunday(utcNow.year, 3, 31) && (utcNow.day > previousSunday(utcNow.year, 3, 31) || utcNow.hour >= 1);
-    return utcNow.day < previousSunday(utcNow.year, 10, 31) || (utcNow.day == previousSunday(utcNow.year, 10, 31) && utcNow.hour < 1);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final screens = [_buildGraphView(), _buildCalendarView(), _buildVacationView()];
+    final screens = [_buildDashboardView(), _buildGraphView(), _buildCalendarView(), _buildVacationView()];
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background, elevation: 0,
@@ -74,8 +69,10 @@ class _EmployeeShellState extends State<EmployeeShell> {
       body: SafeArea(child: screens[_tabIndex]),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex, onTap: (i) => setState(() => _tabIndex = i),
+        type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.background, selectedItemColor: AppColors.neonCyan, unselectedItemColor: Colors.white38,
         items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.space_dashboard), label: t('dashboard')),
           BottomNavigationBarItem(icon: const Icon(Icons.bar_chart), label: t('shift_graph')),
           BottomNavigationBarItem(icon: const Icon(Icons.calendar_month), label: t('calendar')),
           BottomNavigationBarItem(icon: const Icon(Icons.beach_access), label: t('vacation')),
@@ -98,6 +95,96 @@ class _EmployeeShellState extends State<EmployeeShell> {
         const SizedBox(height: 32),
       ],
     );
+  }
+
+  // Feature 1: Employee Dashboard — next-shift countdown, weekly hours,
+  // pending request count. The 1s clock timer keeps the countdown live.
+  Widget _buildDashboardView() {
+    final now = austriaNow();
+    final myShifts = widget.allShifts.where((s) => s.employeeId == widget.currentEmployee.id).toList();
+    final next = _findNextShift(myShifts, now);
+    final nextActive = next != null && isShiftActiveNow(next, now);
+
+    final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final weekDayNums = List.generate(7, (i) => monday.add(Duration(days: i))).where((d) => d.month == now.month).map((d) => d.day).toSet();
+    final weekHours = myShifts.where((s) => weekDayNums.contains(s.dayOfMonth)).fold<int>(0, (a, s) => a + s.durationHours);
+    final pendingVacs = widget.vacations.where((v) => v.employeeName == widget.currentEmployee.name && v.status == 'Pending').length;
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        _buildTopHeader(),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: nextActive ? AppColors.neonCyan : AppColors.neonCyan.withValues(alpha: 0.3))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(t('next_shift'), style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                  if (nextActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(gradient: AppColors.neonGradient, borderRadius: BorderRadius.circular(6)),
+                      child: Text(t('on_shift_badge'), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (next == null)
+                Text(t('no_upcoming'), style: const TextStyle(color: Colors.white54))
+              else ...[
+                Text(next.timeWindow, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                Text('${t('day')} ${next.dayOfMonth}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                if (!nextActive) ...[
+                  const SizedBox(height: 12),
+                  Builder(builder: (context) {
+                    final startHour = parseWindow(next.timeWindow)?.start ?? 0;
+                    final diff = DateTime(now.year, now.month, next.dayOfMonth, startHour).difference(now);
+                    final d = diff.inDays; final h = diff.inHours % 24; final m = diff.inMinutes % 60;
+                    return Text('${t('starts_in')} $d${t('days_short')} $h${t('hours_short')} $m${t('min_short')}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 20, fontWeight: FontWeight.w900));
+                  }),
+                ],
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.5,
+          children: [
+            NeonStatCard(icon: Icons.timelapse, value: weekHours, label: t('hours_this_week'), onTap: () => setState(() => _tabIndex = 1)),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('swapRequests').where('requesterId', isEqualTo: widget.currentEmployee.id).where('status', isEqualTo: 'pending').snapshots(),
+              builder: (context, snap) {
+                final pendingSwaps = snap.hasData ? snap.data!.docs.length : 0;
+                return NeonStatCard(icon: Icons.pending_actions, value: pendingSwaps + pendingVacs, label: t('my_pending'), alert: true, onTap: () => setState(() => _tabIndex = 3));
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Earliest shift (this month) that hasn't ended yet, by day + start hour.
+  ShiftData? _findNextShift(List<ShiftData> shifts, DateTime now) {
+    ShiftData? best;
+    DateTime? bestStart;
+    for (final s in shifts) {
+      if (s.dayOfMonth < now.day) continue;
+      final w = parseWindow(s.timeWindow);
+      final startHour = w?.start ?? 0;
+      final endHour = w == null ? 24 : (w.end > w.start ? w.end : 24);
+      final end = DateTime(now.year, now.month, s.dayOfMonth, endHour);
+      if (end.isBefore(now)) continue;
+      final start = DateTime(now.year, now.month, s.dayOfMonth, startHour);
+      if (bestStart == null || start.isBefore(bestStart)) { best = s; bestStart = start; }
+    }
+    return best;
   }
 
   Widget _buildGraphView() {
