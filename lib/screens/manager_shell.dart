@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../widgets/adaptive_scaffold.dart';
 import '../widgets/neon_stat_card.dart';
 import '../widgets/neon_widgets.dart';
+import '../widgets/notification_bell.dart';
 import '../widgets/notification_drawer.dart';
 import 'reports_screen.dart';
 
@@ -71,8 +72,7 @@ class _ManagerShellState extends State<ManagerShell> {
         actions: [
           // Feature 9: reports & analytics
           IconButton(icon: const Icon(Icons.insights, color: AppColors.neonCyan), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReportsScreen(workspaceId: widget.workspaceId, employees: widget.employees, shifts: widget.shifts)))),
-          // Builder: Scaffold.of needs a context *below* this Scaffold.
-          Builder(builder: (ctx) => IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(ctx).openEndDrawer())),
+          NotificationBell(restaurantId: widget.workspaceId, employeeId: widget.currentManager.id),
           IconButton(icon: const Icon(Icons.logout, color: Colors.white54), onPressed: widget.onLogout)
         ]
       ),
@@ -467,6 +467,7 @@ class _ManagerShellState extends State<ManagerShell> {
             'locationId': ?locId,
           });
           if (ctx.mounted) Navigator.pop(ctx);
+          if (mounted) showNeonToast(context, t('deployed'));
         }),
         const SizedBox(height: 40),
       ]),
@@ -495,6 +496,7 @@ class _ManagerShellState extends State<ManagerShell> {
             'durationHours': (durMin / 60).round(),
           });
           Navigator.pop(ctx);
+          showNeonToast(context, t('saved'));
         }),
         const SizedBox(height: 8),
         TextButton(onPressed: () { _wsDoc.collection('shifts').doc(shift.id).delete(); Navigator.pop(ctx); }, child: Text(t('delete'), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
@@ -748,6 +750,7 @@ class _ManagerShellState extends State<ManagerShell> {
                         }
                         batch.set(_wsDoc.collection('notifications').doc(), {'msg': msg, 'read': false, 'time': DateTime.now().toIso8601String(), 'targetEmployeeId': data['requesterId']});
                         await batch.commit();
+                        if (mounted) showNeonToast(context, t('approved'));
                       })),
                       const SizedBox(width: 8),
                       Expanded(child: TextButton(onPressed: () => doc.reference.update({'status': 'rejected'}), child: Text(t('reject'), style: const TextStyle(color: Colors.redAccent))))
@@ -820,6 +823,7 @@ class _ManagerShellState extends State<ManagerShell> {
           batch.set(_wsDoc.collection('notifications').doc(), {'msg': '📢 $text', 'read': false, 'time': DateTime.now().toIso8601String()});
           batch.commit();
           _announceCtrl.clear();
+          showNeonToast(context, t('saved'));
         }),
         const SizedBox(height: 32),
         StreamBuilder<QuerySnapshot>(

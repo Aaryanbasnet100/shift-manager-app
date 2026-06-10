@@ -12,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../widgets/adaptive_scaffold.dart';
 import '../widgets/neon_calendar.dart';
 import '../widgets/neon_stat_card.dart';
+import '../widgets/notification_bell.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
 
@@ -67,9 +68,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
         actions: [
           // Feature 12: profile & password change
           IconButton(icon: const Icon(Icons.person_outline, color: Colors.white54), onPressed: _openProfileSheet),
-          // Feature 6 Trigger: Notification Bell.
-          // Builder: Scaffold.of needs a context *below* this Scaffold.
-          Builder(builder: (ctx) => IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(ctx).openEndDrawer())),
+          NotificationBell(restaurantId: widget.currentEmployee.restaurantId, employeeId: widget.currentEmployee.id),
           IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.white54), onPressed: widget.onLogout)
         ]
       ),
@@ -294,9 +293,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
     batch.set(ws.collection('swapRequests').doc(), {'type': 'claim', 'requesterId': widget.currentEmployee.id, 'requesterName': widget.currentEmployee.name, 'targetId': '', 'targetName': '', 'shiftId': s.id, 'status': 'pending'});
     batch.set(ws.collection('notifications').doc(), {'msg': '${t('noti_claim')}${widget.currentEmployee.name}', 'read': false, 'time': DateTime.now().toIso8601String()});
     await batch.commit();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text(t('pending'), style: const TextStyle(color: Colors.white))));
-    }
+    if (mounted) showNeonToast(context, t('request_sent'));
   }
 
   // Earliest shift (this month) that hasn't ended yet, by day + start time.
@@ -394,6 +391,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
             batch.set(ws.collection('notifications').doc(), {'msg': '${t('noti_swap_offered')}${widget.currentEmployee.name}', 'read': false, 'time': DateTime.now().toIso8601String()});
             batch.commit();
             Navigator.pop(ctx);
+            showNeonToast(context, t('request_sent'));
           }),
           const SizedBox(height: 8),
           TextButton(
@@ -403,6 +401,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
               batch.set(ws.collection('notifications').doc(), {'msg': '${t('noti_drop_offered')}${widget.currentEmployee.name}', 'read': false, 'time': DateTime.now().toIso8601String()});
               batch.commit();
               Navigator.pop(ctx);
+              showNeonToast(context, t('request_sent'));
             },
             child: Text(t('offer_drop'), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w900, letterSpacing: 1)),
           ),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../theme/app_colors.dart';
+import 'neon_widgets.dart';
 
 // In-App Notification Center Drawer.
 // `employeeId` enables targeting: docs with a targetEmployeeId are only shown
@@ -19,12 +20,12 @@ Widget buildNotificationDrawer(BuildContext context, String restaurantId, {Strin
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('restaurants').doc(restaurantId).collection('notifications').orderBy('time', descending: true).limit(50).snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.neonCyan));
+                if (!snap.hasData) return const Padding(padding: EdgeInsets.all(24), child: NeonSkeleton(rows: 4));
                 final docs = snap.data!.docs.where((d) {
                   final target = (d.data() as Map<String, dynamic>)['targetEmployeeId'];
                   return target == null || employeeId == null || target == employeeId;
                 }).toList();
-                if (docs.isEmpty) return Padding(padding: const EdgeInsets.all(24), child: Text(t('no_alerts'), style: const TextStyle(color: Colors.white54)));
+                if (docs.isEmpty) return EmptyState(message: t('no_alerts'));
                 return ListView.builder(
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
