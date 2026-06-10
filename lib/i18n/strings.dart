@@ -70,7 +70,7 @@ final Map<String, Map<String, String>> dict = {
     'repeat_weeks': 'Repeat (weeks)',
     'export_schedule': 'EXPORT SCHEDULE CSV', 'export_attendance': 'EXPORT ATTENDANCE CSV', 'csv_copied': 'CSV copied to clipboard.',
     'audit_log': 'AUDIT LOG', 'onboard_hint': 'Welcome to ShiftFlow! Register your first staff member to get started.',
-    'edit_entry': 'EDIT ENTRY'
+    'edit_entry': 'EDIT ENTRY', 'reset_password': 'Reset password'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -136,7 +136,7 @@ final Map<String, Map<String, String>> dict = {
     'repeat_weeks': 'Wiederholen (Wochen)',
     'export_schedule': 'DIENSTPLAN ALS CSV', 'export_attendance': 'ANWESENHEIT ALS CSV', 'csv_copied': 'CSV in Zwischenablage kopiert.',
     'audit_log': 'AUDIT-PROTOKOLL', 'onboard_hint': 'Willkommen bei ShiftFlow! Registriere zuerst einen Mitarbeiter.',
-    'edit_entry': 'EINTRAG BEARBEITEN'
+    'edit_entry': 'EINTRAG BEARBEITEN', 'reset_password': 'Passwort zurücksetzen'
   }
 };
 

@@ -107,6 +107,9 @@ class _AdminShellState extends State<AdminShell> {
               children: [
                 // Feature 3: Admin Shift Builder Access
                 IconButton(icon: const Icon(Icons.add_task, color: AppColors.neonCyan), onPressed: () => _showAdminShiftBuilder(context, emp)),
+                // Admin password reset — hashed passwords can't be read back,
+                // so this sets a new one for a locked-out staff member.
+                IconButton(icon: const Icon(Icons.key_outlined, color: Colors.amber), onPressed: () => _showResetPasswordForm(context, emp)),
                 IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () {
                   showDialog(context: context, builder: (ctx) => AlertDialog(
                     backgroundColor: AppColors.surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent)),
@@ -137,6 +140,30 @@ class _AdminShellState extends State<AdminShell> {
     final emailCtrl = TextEditingController(); final rateCtrl = TextEditingController();
     String appRole = 'employee';
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, builder: (context) => StatefulBuilder(builder: (context, setModalState) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(t('add_emp'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 24), buildNeonTextField(controller: nameCtrl, hint: t('name'), icon: Icons.badge_outlined), const SizedBox(height: 12), buildNeonTextField(controller: roleCtrl, hint: t('role'), icon: Icons.work_outline), const SizedBox(height: 12), buildNeonTextField(controller: userCtrl, hint: t('user'), icon: Icons.alternate_email), const SizedBox(height: 12), buildNeonTextField(controller: passCtrl, hint: t('pass'), icon: Icons.lock_outline), const SizedBox(height: 12), buildNeonTextField(controller: emailCtrl, hint: t('email'), icon: Icons.mail_outline), const SizedBox(height: 12), buildNeonTextField(controller: rateCtrl, hint: t('hourly_rate'), icon: Icons.euro), const SizedBox(height: 12), DropdownButtonFormField<String>(value: appRole, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, prefixIcon: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.neonCyan), labelText: t('access_level'), labelStyle: const TextStyle(color: Colors.white38), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [DropdownMenuItem(value: 'employee', child: Text(t('role_employee'))), DropdownMenuItem(value: 'manager', child: Text(t('role_manager')))], onChanged: (val) { if (val != null) setModalState(() => appRole = val); }), const SizedBox(height: 24), buildNeonButton(t('save_cloud'), () { final email = emailCtrl.text.trim(); if (nameCtrl.text.trim().isEmpty || userCtrl.text.trim().length < 3 || passCtrl.text.length < 4 || (email.isNotEmpty && !email.contains('@'))) { showNeonToast(context, t('invalid_input')); return; } { FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).collection('employees').add({'restaurantId': widget.workspaceId, 'name': nameCtrl.text, 'role': roleCtrl.text.isEmpty ? 'Staff' : roleCtrl.text, 'username': userCtrl.text.toLowerCase(), 'password': encodePassword(passCtrl.text, '${widget.workspaceId}:${userCtrl.text.toLowerCase()}'), 'appRole': appRole, 'email': emailCtrl.text.trim(), 'hourlyRate': num.tryParse(rateCtrl.text) ?? 0, 'archived': false}); logAudit(widget.workspaceId, 'admin', 'registered employee ${nameCtrl.text} ($appRole)'); Navigator.pop(context); showNeonToast(context, t('saved')); } }), const SizedBox(height: 40)]))));
+  }
+
+  // Admin password reset: sets a fresh salted hash for the given employee.
+  void _showResetPasswordForm(BuildContext context, EmployeeData emp) {
+    final passCtrl = TextEditingController();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('${t('reset_password')}: ${emp.name}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        Text('@${emp.username}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        const SizedBox(height: 24),
+        buildNeonTextField(controller: passCtrl, hint: t('new_pass'), icon: Icons.lock_outline, isPassword: true),
+        const SizedBox(height: 16),
+        buildNeonButton(t('save'), () {
+          if (passCtrl.text.length < 4) { showNeonToast(context, t('invalid_input')); return; }
+          FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).collection('employees').doc(emp.id).update({'password': encodePassword(passCtrl.text, '${widget.workspaceId}:${emp.username}')});
+          logAudit(widget.workspaceId, 'admin', 'reset password for ${emp.name}');
+          Navigator.pop(ctx);
+          showNeonToast(context, t('saved'));
+        }),
+        const SizedBox(height: 40),
+      ]),
+    ));
   }
 
   // Feature 3: Admin Shift Builder
