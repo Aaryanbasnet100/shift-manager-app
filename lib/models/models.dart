@@ -13,11 +13,14 @@ class EmployeeData {
   // App-level permission role: 'admin' | 'manager' | 'employee'.
   // Optional Firestore field — existing docs without it default to 'employee'.
   String appRole;
-  EmployeeData({required this.id, required this.restaurantId, required this.name, required this.role, required this.username, required this.password, this.appRole = 'employee'});
+  // Team Management v2 optional fields: contact email, hourly rate for
+  // labor-cost reports, soft-delete flag (archived staff can't log in).
+  String? email; num hourlyRate; bool archived;
+  EmployeeData({required this.id, required this.restaurantId, required this.name, required this.role, required this.username, required this.password, this.appRole = 'employee', this.email, this.hourlyRate = 0, this.archived = false});
   bool get canManageShifts => appRole == 'admin' || appRole == 'manager';
   factory EmployeeData.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
-    return EmployeeData(id: doc.id, restaurantId: data['restaurantId'] ?? '', name: data['name'] ?? '', role: data['role'] ?? '', username: data['username'] ?? '', password: data['password'] ?? '', appRole: data['appRole'] ?? 'employee');
+    return EmployeeData(id: doc.id, restaurantId: data['restaurantId'] ?? '', name: data['name'] ?? '', role: data['role'] ?? '', username: data['username'] ?? '', password: data['password'] ?? '', appRole: data['appRole'] ?? 'employee', email: data['email'], hourlyRate: data['hourlyRate'] ?? 0, archived: data['archived'] ?? false);
   }
 }
 

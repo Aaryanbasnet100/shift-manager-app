@@ -50,8 +50,10 @@ class _AuthGateState extends State<AuthGate> {
       setState(() { _userRole = 'admin'; _currentLoggedInUserId = 'admin'; _isLoggedIn = true; });
     } else {
       final query = await _db.collection('restaurants').doc(_activeWorkspace!.id).collection('employees').where('username', isEqualTo: username.toLowerCase()).where('password', isEqualTo: password).get();
-      if (query.docs.isNotEmpty) {
-        setState(() { _userRole = 'employee'; _currentLoggedInUserId = query.docs.first.id; _isLoggedIn = true; });
+      // Archived (soft-deleted) staff can no longer log in.
+      final active = query.docs.where((d) => ((d.data())['archived'] ?? false) != true).toList();
+      if (active.isNotEmpty) {
+        setState(() { _userRole = 'employee'; _currentLoggedInUserId = active.first.id; _isLoggedIn = true; });
       }
     }
   }
@@ -68,7 +70,7 @@ class _AuthGateState extends State<AuthGate> {
       stream: _db.collection('restaurants').doc(_activeWorkspace!.id).collection('employees').snapshots(),
       builder: (context, empSnapshot) {
         if (!empSnapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        final activeEmployees = empSnapshot.data!.docs.map((doc) => EmployeeData.fromFirestore(doc)).toList();
+        final activeEmployees = empSnapshot.data!.docs.map((doc) => EmployeeData.fromFirestore(doc)).where((e) => !e.archived).toList();
 
         return StreamBuilder<QuerySnapshot>(
           stream: _db.collection('restaurants').doc(_activeWorkspace!.id).collection('shifts').snapshots(),

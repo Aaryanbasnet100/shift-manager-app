@@ -51,7 +51,8 @@ final Map<String, Map<String, String>> dict = {
     'noti_drop_approved': 'Shift released to open board: ', 'noti_claim_approved': 'Open shift assigned to ',
     'clock_in': 'CLOCK IN', 'clock_out': 'CLOCK OUT', 'attendance': 'ATTENDANCE',
     'late': 'LATE', 'early_leave': 'LEFT EARLY', 'active_now': 'ACTIVE',
-    'actual': 'Actual', 'scheduled_lbl': 'Scheduled', 'no_entries': 'No attendance entries.'
+    'actual': 'Actual', 'scheduled_lbl': 'Scheduled', 'no_entries': 'No attendance entries.',
+    'email': 'Email', 'hourly_rate': 'Hourly rate (€)'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -98,7 +99,8 @@ final Map<String, Map<String, String>> dict = {
     'noti_drop_approved': 'Schicht freigegeben: ', 'noti_claim_approved': 'Offene Schicht zugewiesen an ',
     'clock_in': 'EINSTEMPELN', 'clock_out': 'AUSSTEMPELN', 'attendance': 'ANWESENHEIT',
     'late': 'VERSPÄTET', 'early_leave': 'FRÜHER GEGANGEN', 'active_now': 'AKTIV',
-    'actual': 'Ist', 'scheduled_lbl': 'Soll', 'no_entries': 'Keine Anwesenheitseinträge.'
+    'actual': 'Ist', 'scheduled_lbl': 'Soll', 'no_entries': 'Keine Anwesenheitseinträge.',
+    'email': 'E-Mail', 'hourly_rate': 'Stundensatz (€)'
   }
 };
 
