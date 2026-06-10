@@ -63,6 +63,8 @@ class _EmployeeShellState extends State<EmployeeShell> {
         backgroundColor: AppColors.background, elevation: 0,
         title: Text(widget.restaurantName.toUpperCase(), style: const TextStyle(color: AppColors.neonPurple, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5)),
         actions: [
+          // Feature 12: profile & password change
+          IconButton(icon: const Icon(Icons.person_outline, color: Colors.white54), onPressed: _openProfileSheet),
           // Feature 6 Trigger: Notification Bell
           IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(context).openEndDrawer()),
           IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.white54), onPressed: widget.onLogout)
@@ -82,6 +84,34 @@ class _EmployeeShellState extends State<EmployeeShell> {
         ],
       ),
     );
+  }
+
+  // Feature 12: profile sheet with password change.
+  void _openProfileSheet() {
+    final passCtrl = TextEditingController();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t('profile'), style: const TextStyle(color: AppColors.neonCyan, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          const SizedBox(height: 12),
+          Text(widget.currentEmployee.name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+          Text('${widget.currentEmployee.role} • @${widget.currentEmployee.username}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 24),
+          buildNeonTextField(controller: passCtrl, hint: t('new_pass'), icon: Icons.lock_outline, isPassword: true),
+          const SizedBox(height: 16),
+          buildNeonButton(t('save'), () {
+            if (passCtrl.text.isEmpty) return;
+            FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('employees').doc(widget.currentEmployee.id).update({'password': passCtrl.text});
+            Navigator.pop(ctx);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text(t('saved'), style: const TextStyle(color: Colors.white))));
+          }),
+          const SizedBox(height: 40),
+        ],
+      ),
+    ));
   }
 
   Widget _buildTopHeader() {

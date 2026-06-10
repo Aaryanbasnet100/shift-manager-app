@@ -61,7 +61,10 @@ final Map<String, Map<String, String>> dict = {
     'warn_max_day': 'would exceed the max hours per day', 'warn_consec': 'would exceed the max consecutive working days',
     'warn_rest': 'would get less than the minimum rest before this shift',
     'locations': 'LOCATIONS', 'location': 'Location', 'all_locations': 'All locations',
-    'add_location': 'ADD LOCATION', 'location_name': 'Location name'
+    'add_location': 'ADD LOCATION', 'location_name': 'Location name',
+    'settings': 'Settings', 'compliance_rules': 'COMPLIANCE RULES',
+    'max_hours_day': 'Max hours per day', 'max_consec_days': 'Max consecutive days', 'min_rest_hours': 'Min rest hours between shifts',
+    'profile': 'PROFILE', 'new_pass': 'New password', 'saved': 'Saved.'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -118,7 +121,10 @@ final Map<String, Map<String, String>> dict = {
     'warn_max_day': 'würde die max. Stunden pro Tag überschreiten', 'warn_consec': 'würde die max. aufeinanderfolgenden Arbeitstage überschreiten',
     'warn_rest': 'hätte weniger als die Mindestruhezeit vor dieser Schicht',
     'locations': 'STANDORTE', 'location': 'Standort', 'all_locations': 'Alle Standorte',
-    'add_location': 'STANDORT HINZUFÜGEN', 'location_name': 'Standortname'
+    'add_location': 'STANDORT HINZUFÜGEN', 'location_name': 'Standortname',
+    'settings': 'Einstellungen', 'compliance_rules': 'COMPLIANCE-REGELN',
+    'max_hours_day': 'Max. Stunden pro Tag', 'max_consec_days': 'Max. aufeinanderfolgende Tage', 'min_rest_hours': 'Min. Ruhestunden zwischen Schichten',
+    'profile': 'PROFIL', 'new_pass': 'Neues Passwort', 'saved': 'Gespeichert.'
   }
 };
 

@@ -22,10 +22,37 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int _tabIndex = 0;
+  // Feature 12: workspace settings (compliance rules + locations).
+  final _maxDayCtrl = TextEditingController();
+  final _maxConsecCtrl = TextEditingController();
+  final _minRestCtrl = TextEditingController();
+  final _locNameCtrl = TextEditingController();
+  bool _settingsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _maxDayCtrl.dispose(); _maxConsecCtrl.dispose(); _minRestCtrl.dispose(); _locNameCtrl.dispose();
+    super.dispose();
+  }
+
+  void _loadSettings() async {
+    final doc = await FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).get();
+    final s = (doc.data()?['settings'] ?? {}) as Map<String, dynamic>;
+    _maxDayCtrl.text = '${s['maxHoursPerDay'] ?? 10}';
+    _maxConsecCtrl.text = '${s['maxConsecutiveDays'] ?? 6}';
+    _minRestCtrl.text = '${s['minRestHours'] ?? 11}';
+    if (mounted) setState(() => _settingsLoaded = true);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final screens = [_buildStaffTab(), _buildRosterTab()];
+    final screens = [_buildStaffTab(), _buildRosterTab(), _buildSettingsTab()];
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background, elevation: 0,
@@ -45,6 +72,7 @@ class _AdminShellState extends State<AdminShell> {
         items: [
           BottomNavigationBarItem(icon: const Icon(Icons.groups_2), label: t('directory')),
           BottomNavigationBarItem(icon: const Icon(Icons.calendar_view_week), label: t('roster')),
+          BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), label: t('settings')),
         ],
       ),
     );
@@ -107,6 +135,67 @@ class _AdminShellState extends State<AdminShell> {
     final dayCtrl = TextEditingController(); final durCtrl = TextEditingController(text: '8');
     String selectedSlot = t('morning');
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24), child: Column(mainAxisSize: MainAxisSize.min, children: [Text('${t('deploy_shift')}: ${emp.name}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 24), buildNeonTextField(controller: dayCtrl, hint: t('day_of_month'), icon: Icons.calendar_today), const SizedBox(height: 12), DropdownButtonFormField<String>(value: selectedSlot, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [t('morning'), t('afternoon'), t('night')].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) { if(val != null) setModalState(() => selectedSlot = val); }), const SizedBox(height: 12), buildNeonTextField(controller: durCtrl, hint: t('duration'), icon: Icons.timer), const SizedBox(height: 24), buildNeonButton(t('deploy_shift'), () async { int day = int.tryParse(dayCtrl.text) ?? 1; final nowA = austriaNow(); final date = DateTime(nowA.year, nowA.month, day); if (await checkShiftConflict(ctx, widget.shifts, emp.id, date)) { final w = parseWindow(selectedSlot); FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).collection('shifts').add({'restaurantId': widget.workspaceId, 'employeeId': emp.id, 'employeeName': emp.name, 'timeWindow': selectedSlot, 'dayOfMonth': day, 'month': date.month, 'year': date.year, if (w != null) 'startMinutes': w.start * 60, if (w != null) 'endMinutes': w.end * 60, 'durationHours': int.tryParse(durCtrl.text) ?? 8}); Navigator.pop(ctx); } }), const SizedBox(height: 40)]))));
+  }
+
+  // Feature 12: workspace settings — compliance rules + locations.
+  Widget _buildSettingsTab() {
+    final wsRef = FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId);
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text(t('settings'), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+        const SizedBox(height: 24),
+        Text(t('compliance_rules'), style: const TextStyle(color: AppColors.neonCyan, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        const SizedBox(height: 16),
+        if (!_settingsLoaded) const Center(child: CircularProgressIndicator(color: AppColors.neonCyan))
+        else ...[
+          buildNeonTextField(controller: _maxDayCtrl, hint: t('max_hours_day'), icon: Icons.timelapse),
+          const SizedBox(height: 12),
+          buildNeonTextField(controller: _maxConsecCtrl, hint: t('max_consec_days'), icon: Icons.date_range),
+          const SizedBox(height: 12),
+          buildNeonTextField(controller: _minRestCtrl, hint: t('min_rest_hours'), icon: Icons.hotel),
+          const SizedBox(height: 16),
+          buildNeonButton(t('save'), () {
+            wsRef.set({'settings': {
+              'maxHoursPerDay': num.tryParse(_maxDayCtrl.text) ?? 10,
+              'maxConsecutiveDays': num.tryParse(_maxConsecCtrl.text) ?? 6,
+              'minRestHours': num.tryParse(_minRestCtrl.text) ?? 11,
+            }}, SetOptions(merge: true));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text(t('saved'), style: const TextStyle(color: Colors.white))));
+          }),
+        ],
+        const SizedBox(height: 32),
+        Text(t('locations'), style: const TextStyle(color: AppColors.neonPurple, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        const SizedBox(height: 16),
+        StreamBuilder<QuerySnapshot>(
+          stream: wsRef.collection('locations').snapshots(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const SizedBox.shrink();
+            final locations = snap.data!.docs.map((d) => LocationData.fromFirestore(d)).where((l) => !l.archived).toList();
+            return Column(
+              children: locations.map((l) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
+                child: ListTile(
+                  leading: const Icon(Icons.place_outlined, color: AppColors.neonPurple),
+                  title: Text(l.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20), onPressed: () => wsRef.collection('locations').doc(l.id).update({'archived': true})),
+                ),
+              )).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        buildNeonTextField(controller: _locNameCtrl, hint: t('location_name'), icon: Icons.add_location_alt_outlined),
+        const SizedBox(height: 12),
+        buildNeonButton(t('add_location'), () {
+          if (_locNameCtrl.text.trim().isEmpty) return;
+          wsRef.collection('locations').add({'name': _locNameCtrl.text.trim(), 'archived': false});
+          _locNameCtrl.clear();
+        }),
+        const SizedBox(height: 40),
+      ],
+    );
   }
 
   Widget _buildRosterTab() {
