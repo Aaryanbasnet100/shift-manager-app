@@ -32,7 +32,8 @@ class SuperAdminShell extends StatelessWidget {
                 decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3))),
                 child: ExpansionTile(
                   title: Text(client['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                  subtitle: Text('ID: ${client.id} | Admin Pass: ${client['adminPassword']}', style: const TextStyle(color: Colors.white54)),
+                  // Credentials are deliberately no longer displayed here.
+                  subtitle: Text('ID: ${client.id}', style: const TextStyle(color: Colors.white54)),
                   iconColor: Colors.redAccent, collapsedIconColor: Colors.redAccent,
                   children: [
                     FutureBuilder<QuerySnapshot>(
@@ -43,7 +44,7 @@ class SuperAdminShell extends StatelessWidget {
                           children: empSnap.data!.docs.map((doc) => ListTile(
                             leading: const Icon(Icons.person, color: Colors.white38),
                             title: Text(doc['name'], style: const TextStyle(color: Colors.white)),
-                            subtitle: Text('User: ${doc['username']} | Pass: ${doc['password']}', style: const TextStyle(color: AppColors.neonCyan, fontFamily: 'monospace')),
+                            subtitle: Text('User: ${doc['username']}', style: const TextStyle(color: AppColors.neonCyan, fontFamily: 'monospace')),
                           )).toList(),
                         );
                       }

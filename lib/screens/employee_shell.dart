@@ -5,6 +5,7 @@ import '../i18n/strings.dart';
 import '../models/models.dart';
 import '../services/austria_time.dart';
 import '../services/availability.dart';
+import '../services/password.dart';
 import '../services/shift_conflict_engine.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
@@ -105,7 +106,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
           const SizedBox(height: 16),
           buildNeonButton(t('save'), () {
             if (passCtrl.text.isEmpty) return;
-            FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('employees').doc(widget.currentEmployee.id).update({'password': passCtrl.text});
+            FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('employees').doc(widget.currentEmployee.id).update({'password': encodePassword(passCtrl.text, '${widget.currentEmployee.restaurantId}:${widget.currentEmployee.username}')});
             Navigator.pop(ctx);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text(t('saved'), style: const TextStyle(color: Colors.white))));
           }),

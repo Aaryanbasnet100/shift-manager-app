@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
+import '../services/password.dart';
 import 'admin_shell.dart';
 import 'employee_shell.dart';
 import 'login_screen.dart';
@@ -20,9 +23,47 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   RestaurantTenant? _activeWorkspace;
   bool _isLoggedIn = false;
+  bool _restoring = true;
   String _currentLoggedInUserId = '';
   String _userRole = '';
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  static const _sessionKey = 'shiftflow_session';
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  // Survive browser refreshes: restore the last session from local storage.
+  Future<void> _restoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_sessionKey);
+      if (raw != null) {
+        final s = jsonDecode(raw) as Map<String, dynamic>;
+        if (s['workspaceId'] == 'system_root') {
+          _activeWorkspace = RestaurantTenant(id: 'system_root', name: 'SUPER ADMIN GOD MODE', adminPassword: '');
+          _userRole = 'superadmin'; _isLoggedIn = true;
+        } else {
+          final doc = await _db.collection('restaurants').doc(s['workspaceId']).get();
+          if (doc.exists) {
+            _activeWorkspace = RestaurantTenant(id: doc.id, name: doc['name'], adminPassword: doc['adminPassword']);
+            _userRole = s['role'] ?? '';
+            _currentLoggedInUserId = s['userId'] ?? '';
+            _isLoggedIn = _userRole.isNotEmpty;
+          }
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _restoring = false);
+  }
+
+  Future<void> _saveSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sessionKey, jsonEncode({'workspaceId': _activeWorkspace?.id, 'role': _userRole, 'userId': _currentLoggedInUserId}));
+  }
 
   void _verifyWorkspace(String workspaceId) async {
     final cleanId = workspaceId.toLowerCase().trim();
@@ -42,26 +83,45 @@ class _AuthGateState extends State<AuthGate> {
 
   void _login(String username, String password) async {
     if (_activeWorkspace == null) return;
-    if (_activeWorkspace!.id == 'system_root' && username == 'superadmin' && password == 'masterkey') {
+    final ws = _activeWorkspace!;
+    if (ws.id == 'system_root' && username == 'superadmin' && password == 'masterkey') {
       setState(() { _userRole = 'superadmin'; _isLoggedIn = true; });
+      _saveSession();
       return;
     }
-    if (username.toLowerCase() == 'admin' && password == _activeWorkspace!.adminPassword) {
-      setState(() { _userRole = 'admin'; _currentLoggedInUserId = 'admin'; _isLoggedIn = true; });
-    } else {
-      final query = await _db.collection('restaurants').doc(_activeWorkspace!.id).collection('employees').where('username', isEqualTo: username.toLowerCase()).where('password', isEqualTo: password).get();
-      // Archived (soft-deleted) staff can no longer log in.
-      final active = query.docs.where((d) => ((d.data())['archived'] ?? false) != true).toList();
-      if (active.isNotEmpty) {
-        setState(() { _userRole = 'employee'; _currentLoggedInUserId = active.first.id; _isLoggedIn = true; });
+    final uname = username.toLowerCase().trim();
+    if (uname == 'admin') {
+      if (verifyPassword(password, ws.adminPassword, ws.id)) {
+        // Upgrade a legacy plaintext admin password on first login.
+        if (!isHashed(ws.adminPassword)) _db.collection('restaurants').doc(ws.id).update({'adminPassword': encodePassword(password, ws.id)});
+        setState(() { _userRole = 'admin'; _currentLoggedInUserId = 'admin'; _isLoggedIn = true; });
+        _saveSession();
       }
+      return;
+    }
+    // Query by username only — passwords are verified (and legacy ones
+    // upgraded to salted hashes) locally, never compared in the query.
+    final query = await _db.collection('restaurants').doc(ws.id).collection('employees').where('username', isEqualTo: uname).get();
+    for (final d in query.docs) {
+      final data = d.data();
+      if ((data['archived'] ?? false) == true) continue; // soft-deleted
+      final stored = (data['password'] ?? '') as String;
+      if (!verifyPassword(password, stored, '${ws.id}:$uname')) continue;
+      if (!isHashed(stored)) d.reference.update({'password': encodePassword(password, '${ws.id}:$uname')});
+      setState(() { _userRole = 'employee'; _currentLoggedInUserId = d.id; _isLoggedIn = true; });
+      _saveSession();
+      return;
     }
   }
 
-  void _logout() => setState(() { _isLoggedIn = false; _userRole = ''; _currentLoggedInUserId = ''; _activeWorkspace = null; });
+  void _logout() {
+    SharedPreferences.getInstance().then((p) => p.remove(_sessionKey));
+    setState(() { _isLoggedIn = false; _userRole = ''; _currentLoggedInUserId = ''; _activeWorkspace = null; });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_restoring) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     if (_activeWorkspace == null) return WorkspaceGateScreen(onVerify: _verifyWorkspace);
     if (!_isLoggedIn) return LoginScreen(restaurantName: _activeWorkspace!.name, onLogin: _login, onBack: () => setState(()=> _activeWorkspace = null));
     if (_userRole == 'superadmin') return SuperAdminShell(onLogout: _logout);

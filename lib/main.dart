@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarBrightness: Brightness.dark));
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Anonymous auth lets firestore.rules require request.auth != null,
+  // blocking raw API-key access from outside the app. No-op if Anonymous
+  // sign-in isn't enabled in the Firebase console yet.
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+  } catch (_) {}
   runApp(const ShiftFlowApp());
 }
 
