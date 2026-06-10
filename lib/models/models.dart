@@ -34,6 +34,18 @@ class ShiftData {
   }
 }
 
+// Feature 3: a reusable week pattern. Each pattern entry is
+// {weekday: 1-7 (Mon-Sun), startMinutes, endMinutes} — no employee,
+// assignment is suggested at apply time.
+class ShiftTemplateData {
+  String id; String name; List<Map<String, dynamic>> pattern;
+  ShiftTemplateData({required this.id, required this.name, required this.pattern});
+  factory ShiftTemplateData.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return ShiftTemplateData(id: doc.id, name: data['name'] ?? '', pattern: List<Map<String, dynamic>>.from((data['pattern'] ?? []).map((e) => Map<String, dynamic>.from(e))));
+  }
+}
+
 class VacationData {
   String id; String restaurantId; String employeeName; String dates; String status;
   VacationData({required this.id, required this.restaurantId, required this.employeeName, required this.dates, this.status = 'Pending'});

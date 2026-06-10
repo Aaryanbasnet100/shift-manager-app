@@ -171,15 +171,26 @@ class _ManagerShellState extends State<ManagerShell> {
   }
 
   // --- Tab 2: Schedule (week view + shift CRUD) ------------------------
-  Widget _buildScheduleTab() {
+  List<DateTime> get _visibleWeek {
     final now = austriaNow();
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1)).add(Duration(days: _weekOffset * 7));
-    final days = List.generate(7, (i) => monday.add(Duration(days: i)));
+    return List.generate(7, (i) => monday.add(Duration(days: i)));
+  }
+
+  Widget _buildScheduleTab() {
+    final days = _visibleWeek;
 
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text(t('schedule'), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(t('schedule'), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+            // Feature 3: shift templates
+            IconButton(icon: const Icon(Icons.layers_outlined, color: AppColors.neonCyan), onPressed: _openTemplatesSheet),
+          ],
+        ),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -320,6 +331,121 @@ class _ManagerShellState extends State<ManagerShell> {
         const SizedBox(height: 32),
       ]),
     )));
+  }
+
+  // --- Feature 3: Shift Templates & Auto-Fill ---------------------------
+  void _openTemplatesSheet() {
+    final nameCtrl = TextEditingController();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t('templates'), style: const TextStyle(color: AppColors.neonCyan, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          const SizedBox(height: 24),
+          buildNeonTextField(controller: nameCtrl, hint: t('template_name'), icon: Icons.layers_outlined),
+          const SizedBox(height: 12),
+          buildNeonButton(t('save_week_template'), () {
+            if (_saveWeekAsTemplate(nameCtrl.text)) {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text(t('template_saved'), style: const TextStyle(color: Colors.white))));
+            }
+          }),
+          const SizedBox(height: 24),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 320),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _wsDoc.collection('shiftTemplates').where('archived', isEqualTo: false).snapshots(),
+              builder: (context, snap) {
+                if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.neonCyan));
+                final templates = snap.data!.docs.map((d) => ShiftTemplateData.fromFirestore(d)).toList()..sort((a, b) => a.name.compareTo(b.name));
+                if (templates.isEmpty) return Padding(padding: const EdgeInsets.only(bottom: 24), child: Text(t('no_templates'), style: const TextStyle(color: Colors.white54)));
+                return ListView(
+                  shrinkWrap: true,
+                  children: templates.map((tpl) => Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
+                    child: ListTile(
+                      title: Text(tpl.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text('${tpl.pattern.length} ${t('slots')}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(onPressed: () { Navigator.pop(ctx); _applyTemplate(tpl); }, child: Text(t('apply'), style: const TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.w900))),
+                          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20), onPressed: () => _wsDoc.collection('shiftTemplates').doc(tpl.id).update({'archived': true})),
+                        ],
+                      ),
+                    ),
+                  )).toList(),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    ));
+  }
+
+  // Captures the visible week's shifts as an anonymous weekday+time pattern.
+  bool _saveWeekAsTemplate(String name) {
+    if (name.trim().isEmpty) return false;
+    final pattern = <Map<String, dynamic>>[];
+    for (final d in _visibleWeek) {
+      for (final s in widget.shifts.where((s) => occursOn(s, d))) {
+        pattern.add({'weekday': d.weekday, 'startMinutes': effectiveStartMinutes(s), 'endMinutes': effectiveEndMinutes(s) % 1440});
+      }
+    }
+    if (pattern.isEmpty) return false;
+    _wsDoc.collection('shiftTemplates').add({'name': name.trim(), 'pattern': pattern, 'archived': false, 'createdAt': DateTime.now().toIso8601String()});
+    return true;
+  }
+
+  // Auto-fill: assigns each template slot to the least-loaded employee of the
+  // visible week, skipping anyone already scheduled that day and preferring
+  // candidates who stay under the 160h monthly overtime threshold.
+  Future<void> _applyTemplate(ShiftTemplateData tpl) async {
+    final week = _visibleWeek;
+    final mRef = week.first;
+    final weekHours = {for (final e in widget.employees) e.id: widget.shifts.where((s) => s.employeeId == e.id && week.any((d) => occursOn(s, d))).fold<int>(0, (a, s) => a + s.durationHours)};
+    final monthHours = {for (final e in widget.employees) e.id: widget.shifts.where((s) => s.employeeId == e.id && (s.month == null || s.month == mRef.month) && (s.year == null || s.year == mRef.year)).fold<int>(0, (a, s) => a + s.durationHours)};
+    final assigned = <String>{};
+    final batch = FirebaseFirestore.instance.batch();
+    int created = 0;
+
+    for (final p in tpl.pattern) {
+      final date = week.firstWhere((d) => d.weekday == (p['weekday'] ?? 1), orElse: () => week.first);
+      final startMin = (p['startMinutes'] ?? 540) as int;
+      final endMin = (p['endMinutes'] ?? 1020) as int;
+      final durH = (((endMin - startMin + 1440) % 1440) / 60).round();
+
+      final candidates = widget.employees.where((e) =>
+        !assigned.contains('${e.id}-${date.day}') &&
+        !widget.shifts.any((s) => s.employeeId == e.id && occursOn(s, date))).toList();
+      if (candidates.isEmpty) continue;
+
+      final safe = candidates.where((e) => (monthHours[e.id] ?? 0) + durH <= 160).toList();
+      final pool = safe.isNotEmpty ? safe : candidates;
+      pool.sort((a, b) => (weekHours[a.id] ?? 0).compareTo(weekHours[b.id] ?? 0));
+      final pick = pool.first;
+
+      batch.set(_wsDoc.collection('shifts').doc(), {
+        'restaurantId': widget.workspaceId, 'employeeId': pick.id, 'employeeName': pick.name,
+        'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
+        'dayOfMonth': date.day, 'month': date.month, 'year': date.year,
+        'startMinutes': startMin, 'endMinutes': endMin, 'durationHours': durH,
+      });
+      assigned.add('${pick.id}-${date.day}');
+      weekHours[pick.id] = (weekHours[pick.id] ?? 0) + durH;
+      monthHours[pick.id] = (monthHours[pick.id] ?? 0) + durH;
+      created++;
+    }
+
+    await batch.commit();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text('${t('template_applied')}: $created/${tpl.pattern.length}', style: const TextStyle(color: Colors.white))));
+    }
   }
 
   // --- Tab 3: Requests (swaps + vacations) -----------------------------

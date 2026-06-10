@@ -37,7 +37,10 @@ final Map<String, Map<String, String>> dict = {
     'no_shifts_today': 'No shifts scheduled today.', 'next_shift': 'NEXT SHIFT', 'no_upcoming': 'No upcoming shifts.',
     'hours_this_week': 'HOURS THIS WEEK', 'my_pending': 'MY PENDING REQUESTS', 'starts_in': 'Starts in',
     'on_shift_badge': 'ON SHIFT', 'days_short': 'd', 'hours_short': 'h', 'min_short': 'm',
-    'start_time': 'START TIME', 'end_time': 'END TIME'
+    'start_time': 'START TIME', 'end_time': 'END TIME',
+    'templates': 'TEMPLATES', 'template_name': 'Template name', 'save_week_template': 'SAVE THIS WEEK AS TEMPLATE',
+    'apply': 'APPLY', 'no_templates': 'No templates saved yet.', 'slots': 'slots',
+    'template_saved': 'Template saved.', 'template_applied': 'Template applied'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -70,7 +73,10 @@ final Map<String, Map<String, String>> dict = {
     'no_shifts_today': 'Heute keine Schichten geplant.', 'next_shift': 'NÄCHSTE SCHICHT', 'no_upcoming': 'Keine anstehenden Schichten.',
     'hours_this_week': 'STUNDEN DIESE WOCHE', 'my_pending': 'MEINE OFFENEN ANFRAGEN', 'starts_in': 'Beginnt in',
     'on_shift_badge': 'IM DIENST', 'days_short': 'T', 'hours_short': 'Std', 'min_short': 'Min',
-    'start_time': 'BEGINN', 'end_time': 'ENDE'
+    'start_time': 'BEGINN', 'end_time': 'ENDE',
+    'templates': 'VORLAGEN', 'template_name': 'Vorlagenname', 'save_week_template': 'WOCHE ALS VORLAGE SPEICHERN',
+    'apply': 'ANWENDEN', 'no_templates': 'Noch keine Vorlagen gespeichert.', 'slots': 'Slots',
+    'template_saved': 'Vorlage gespeichert.', 'template_applied': 'Vorlage angewendet'
   }
 };
 
