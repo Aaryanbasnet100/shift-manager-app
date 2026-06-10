@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/i18n/strings.dart';
+import 'package:flutter_application_1/widgets/neon_stat_card.dart';
+import 'package:flutter_application_1/widgets/neon_widgets.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ShiftFlowApp());
+  testWidgets('NeonStatCard counts up to its value', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: NeonStatCard(label: 'TEST', value: 42, icon: Icons.star))));
+    await tester.pumpAndSettle();
+    expect(find.text('42'), findsOneWidget);
+    expect(find.text('TEST'), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('LanguageToggle switches appLang and highlights selection', (tester) async {
+    appLang.value = 'en';
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LanguageToggle())));
+    await tester.tap(find.text('DE'));
+    await tester.pumpAndSettle();
+    expect(appLang.value, 'de');
+    expect(t('vacation'), 'Urlaub');
+    appLang.value = 'en';
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('EmptyState renders message and wave logo', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: EmptyState(message: 'nothing here'))));
+    expect(find.text('nothing here'), findsOneWidget);
+    expect(find.byIcon(Icons.waves_rounded), findsOneWidget);
   });
 }
