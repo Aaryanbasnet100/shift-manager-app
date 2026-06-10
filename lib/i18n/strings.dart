@@ -68,7 +68,9 @@ final Map<String, Map<String, String>> dict = {
     'deployed': 'Shift deployed.', 'request_sent': 'Request sent.',
     'invalid_input': 'Check inputs: name required, username 3+ chars, password 4+ chars, valid email.',
     'repeat_weeks': 'Repeat (weeks)',
-    'export_schedule': 'EXPORT SCHEDULE CSV', 'export_attendance': 'EXPORT ATTENDANCE CSV', 'csv_copied': 'CSV copied to clipboard.'
+    'export_schedule': 'EXPORT SCHEDULE CSV', 'export_attendance': 'EXPORT ATTENDANCE CSV', 'csv_copied': 'CSV copied to clipboard.',
+    'audit_log': 'AUDIT LOG', 'onboard_hint': 'Welcome to ShiftFlow! Register your first staff member to get started.',
+    'edit_entry': 'EDIT ENTRY'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -132,7 +134,9 @@ final Map<String, Map<String, String>> dict = {
     'deployed': 'Schicht zugewiesen.', 'request_sent': 'Anfrage gesendet.',
     'invalid_input': 'Eingaben prüfen: Name erforderlich, Benutzername 3+ Zeichen, Passwort 4+ Zeichen, gültige E-Mail.',
     'repeat_weeks': 'Wiederholen (Wochen)',
-    'export_schedule': 'DIENSTPLAN ALS CSV', 'export_attendance': 'ANWESENHEIT ALS CSV', 'csv_copied': 'CSV in Zwischenablage kopiert.'
+    'export_schedule': 'DIENSTPLAN ALS CSV', 'export_attendance': 'ANWESENHEIT ALS CSV', 'csv_copied': 'CSV in Zwischenablage kopiert.',
+    'audit_log': 'AUDIT-PROTOKOLL', 'onboard_hint': 'Willkommen bei ShiftFlow! Registriere zuerst einen Mitarbeiter.',
+    'edit_entry': 'EINTRAG BEARBEITEN'
   }
 };
 

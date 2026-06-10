@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
+import '../services/audit.dart';
 import '../services/austria_time.dart';
 import '../services/availability.dart';
 import '../services/shift_conflict_engine.dart';
@@ -212,8 +213,9 @@ class _ManagerShellState extends State<ManagerShell> {
               stream: _wsDoc.collection('timeEntries').where('employeeId', isEqualTo: emp.id).snapshots(),
               builder: (context, snap) {
                 if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.neonCyan));
-                final entries = snap.data!.docs.map((d) => d.data() as Map<String, dynamic>).toList()
-                  ..sort((a, b) => (b['clockIn'] ?? '').toString().compareTo((a['clockIn'] ?? '').toString()));
+                final entryDocs = snap.data!.docs.toList()
+                  ..sort((a, b) => ((b.data() as Map<String, dynamic>)['clockIn'] ?? '').toString().compareTo(((a.data() as Map<String, dynamic>)['clockIn'] ?? '').toString()));
+                final entries = entryDocs.map((d) => d.data() as Map<String, dynamic>).toList();
                 if (entries.isEmpty) return Padding(padding: const EdgeInsets.only(bottom: 24), child: Text(t('no_entries'), style: const TextStyle(color: Colors.white54)));
 
                 // Month summary: actual (closed entries) vs scheduled minutes.
@@ -235,7 +237,8 @@ class _ManagerShellState extends State<ManagerShell> {
                     Flexible(
                       child: ListView(
                         shrinkWrap: true,
-                        children: entries.map((e) {
+                        children: entryDocs.map((entryDoc) {
+                          final e = entryDoc.data() as Map<String, dynamic>;
                           final ci = DateTime.tryParse(e['clockIn'] ?? '');
                           final co = DateTime.tryParse(e['clockOut'] ?? '');
                           if (ci == null) return const SizedBox.shrink();
@@ -254,7 +257,11 @@ class _ManagerShellState extends State<ManagerShell> {
                             child: Text(label, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w900)),
                           );
 
-                          return Container(
+                          return InkWell(
+                            // Correction flow: tap an entry to adjust or remove it.
+                            onTap: () => _editTimeEntry(entryDoc),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: co == null ? AppColors.neonCyan : Colors.white.withValues(alpha: 0.05))),
@@ -277,7 +284,7 @@ class _ManagerShellState extends State<ManagerShell> {
                                 if (actual != null) Text(hm(actual), style: const TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.w900, fontSize: 12)),
                               ],
                             ),
-                          );
+                          ));
                         }).toList(),
                       ),
                     ),
@@ -290,6 +297,45 @@ class _ManagerShellState extends State<ManagerShell> {
         ],
       ),
     ));
+  }
+
+  // Attendance correction: adjust clock-in/out times or remove a bad entry.
+  void _editTimeEntry(DocumentSnapshot entryDoc) {
+    final e = entryDoc.data() as Map<String, dynamic>;
+    final ci = DateTime.tryParse(e['clockIn'] ?? '');
+    if (ci == null) return;
+    final co = DateTime.tryParse(e['clockOut'] ?? '');
+    int inMin = ci.hour * 60 + ci.minute;
+    int outMin = co != null ? co.hour * 60 + co.minute : inMin;
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('${t('edit_entry')}: ${e['employeeName'] ?? ''} • ${ci.day}.${ci.month}.', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 24),
+        Row(children: [
+          Expanded(child: _timePickerField(ctx, t('clock_in'), inMin, (v) => setModalState(() => inMin = v))),
+          const SizedBox(width: 12),
+          Expanded(child: _timePickerField(ctx, t('clock_out'), outMin, (v) => setModalState(() => outMin = v))),
+        ]),
+        const SizedBox(height: 24),
+        buildNeonButton(t('save'), () {
+          entryDoc.reference.update({
+            'clockIn': DateTime(ci.year, ci.month, ci.day, inMin ~/ 60, inMin % 60).toIso8601String(),
+            'clockOut': DateTime(ci.year, ci.month, ci.day, outMin ~/ 60, outMin % 60).toIso8601String(),
+          });
+          logAudit(widget.workspaceId, widget.currentManager.name, 'corrected time entry of ${e['employeeName'] ?? ''} (${ci.day}.${ci.month}.)');
+          Navigator.pop(ctx);
+          showNeonToast(context, t('saved'));
+        }),
+        const SizedBox(height: 8),
+        TextButton(onPressed: () {
+          entryDoc.reference.delete();
+          logAudit(widget.workspaceId, widget.currentManager.name, 'deleted time entry of ${e['employeeName'] ?? ''} (${ci.day}.${ci.month}.)');
+          Navigator.pop(ctx);
+        }, child: Text(t('delete'), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
+        const SizedBox(height: 32),
+      ]),
+    )));
   }
 
   // --- Tab 2: Schedule (week view + shift CRUD) ------------------------
@@ -394,6 +440,7 @@ class _ManagerShellState extends State<ManagerShell> {
       return;
     }
     _wsDoc.collection('shifts').doc(s.id).update({'dayOfMonth': target.day, 'month': target.month, 'year': target.year});
+    logAudit(widget.workspaceId, widget.currentManager.name, 'moved shift of ${s.employeeName} to ${target.day}.${target.month}.');
     showNeonToast(context, t('saved'));
   }
 
@@ -500,6 +547,7 @@ class _ManagerShellState extends State<ManagerShell> {
             });
           }
           batch.commit();
+          logAudit(widget.workspaceId, widget.currentManager.name, 'deployed shift: ${isOpen ? 'OPEN' : emp!.name} ${date.day}.${date.month}. ${fmtMinutes(startMin)}-${fmtMinutes(endMin)} x$repeatWeeks');
           if (ctx.mounted) Navigator.pop(ctx);
           if (mounted) showNeonToast(context, t('deployed'));
         }),
@@ -531,9 +579,10 @@ class _ManagerShellState extends State<ManagerShell> {
           });
           Navigator.pop(ctx);
           showNeonToast(context, t('saved'));
+          logAudit(widget.workspaceId, widget.currentManager.name, 'edited shift of ${shift.employeeName}');
         }),
         const SizedBox(height: 8),
-        TextButton(onPressed: () { _wsDoc.collection('shifts').doc(shift.id).delete(); Navigator.pop(ctx); }, child: Text(t('delete'), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
+        TextButton(onPressed: () { _wsDoc.collection('shifts').doc(shift.id).delete(); logAudit(widget.workspaceId, widget.currentManager.name, 'deleted shift of ${shift.employeeName}'); Navigator.pop(ctx); }, child: Text(t('delete'), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))),
         const SizedBox(height: 32),
       ]),
     )));
@@ -731,9 +780,8 @@ class _ManagerShellState extends State<ManagerShell> {
     }
 
     await batch.commit();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text('${t('template_applied')}: $created/${tpl.pattern.length}', style: const TextStyle(color: Colors.white))));
-    }
+    logAudit(widget.workspaceId, widget.currentManager.name, 'applied template "${tpl.name}" ($created/${tpl.pattern.length} slots)');
+    if (mounted) showNeonToast(context, '${t('template_applied')}: $created/${tpl.pattern.length}');
   }
 
   // --- Tab 3: Requests (swaps + vacations) -----------------------------
@@ -784,6 +832,7 @@ class _ManagerShellState extends State<ManagerShell> {
                         }
                         batch.set(_wsDoc.collection('notifications').doc(), {'msg': msg, 'read': false, 'time': DateTime.now().toIso8601String(), 'targetEmployeeId': data['requesterId']});
                         await batch.commit();
+                        logAudit(widget.workspaceId, widget.currentManager.name, 'approved $type request of $requester');
                         if (mounted) showNeonToast(context, t('approved'));
                       })),
                       const SizedBox(width: 8),
@@ -834,6 +883,7 @@ class _ManagerShellState extends State<ManagerShell> {
           batch.update(_wsDoc.collection('vacations').doc(v.id), {'status': status, 'decisionNote': noteCtrl.text.trim()});
           batch.set(_wsDoc.collection('notifications').doc(), {'msg': '${t('vacation')} ${t(status.toLowerCase())}: ${v.employeeName}', 'read': false, 'time': DateTime.now().toIso8601String(), 'targetEmployeeId': v.employeeId});
           batch.commit();
+          logAudit(widget.workspaceId, widget.currentManager.name, '$status vacation of ${v.employeeName} (${v.dates})');
           Navigator.pop(ctx);
         }, child: Text(status == 'Approved' ? t('approve') : t('deny'), style: TextStyle(color: status == 'Approved' ? AppColors.neonCyan : Colors.redAccent, fontWeight: FontWeight.bold))),
       ],

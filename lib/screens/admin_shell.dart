@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
+import '../services/audit.dart';
 import '../services/austria_time.dart';
 import '../services/password.dart';
 import '../services/shift_conflict_engine.dart';
@@ -89,6 +90,12 @@ class _AdminShellState extends State<AdminShell> {
           IconButton(icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.neonCyan), onPressed: () => _showAddEmpForm(context))
         ]),
         const SizedBox(height: 24),
+        // Onboarding: a fresh workspace starts here.
+        if (widget.employees.isEmpty) ...[
+          EmptyState(message: t('onboard_hint')),
+          const SizedBox(height: 16),
+          buildNeonButton(t('add_emp'), () => _showAddEmpForm(context)),
+        ],
         ...widget.employees.map((emp) => Container(
           margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
           child: ListTile(
@@ -111,6 +118,7 @@ class _AdminShellState extends State<AdminShell> {
                         // Soft-delete: the record stays in Firestore but the
                         // person disappears from the app and can't log in.
                         FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).collection('employees').doc(emp.id).update({'archived': true});
+                        logAudit(widget.workspaceId, 'admin', 'archived employee ${emp.name}');
                         Navigator.pop(ctx);
                       }, child: Text(t('delete'), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)))
                     ]
@@ -128,7 +136,7 @@ class _AdminShellState extends State<AdminShell> {
     final nameCtrl = TextEditingController(); final roleCtrl = TextEditingController(); final userCtrl = TextEditingController(); final passCtrl = TextEditingController();
     final emailCtrl = TextEditingController(); final rateCtrl = TextEditingController();
     String appRole = 'employee';
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, builder: (context) => StatefulBuilder(builder: (context, setModalState) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(t('add_emp'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 24), buildNeonTextField(controller: nameCtrl, hint: t('name'), icon: Icons.badge_outlined), const SizedBox(height: 12), buildNeonTextField(controller: roleCtrl, hint: t('role'), icon: Icons.work_outline), const SizedBox(height: 12), buildNeonTextField(controller: userCtrl, hint: t('user'), icon: Icons.alternate_email), const SizedBox(height: 12), buildNeonTextField(controller: passCtrl, hint: t('pass'), icon: Icons.lock_outline), const SizedBox(height: 12), buildNeonTextField(controller: emailCtrl, hint: t('email'), icon: Icons.mail_outline), const SizedBox(height: 12), buildNeonTextField(controller: rateCtrl, hint: t('hourly_rate'), icon: Icons.euro), const SizedBox(height: 12), DropdownButtonFormField<String>(value: appRole, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, prefixIcon: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.neonCyan), labelText: t('access_level'), labelStyle: const TextStyle(color: Colors.white38), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [DropdownMenuItem(value: 'employee', child: Text(t('role_employee'))), DropdownMenuItem(value: 'manager', child: Text(t('role_manager')))], onChanged: (val) { if (val != null) setModalState(() => appRole = val); }), const SizedBox(height: 24), buildNeonButton(t('save_cloud'), () { final email = emailCtrl.text.trim(); if (nameCtrl.text.trim().isEmpty || userCtrl.text.trim().length < 3 || passCtrl.text.length < 4 || (email.isNotEmpty && !email.contains('@'))) { showNeonToast(context, t('invalid_input')); return; } { FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).collection('employees').add({'restaurantId': widget.workspaceId, 'name': nameCtrl.text, 'role': roleCtrl.text.isEmpty ? 'Staff' : roleCtrl.text, 'username': userCtrl.text.toLowerCase(), 'password': encodePassword(passCtrl.text, '${widget.workspaceId}:${userCtrl.text.toLowerCase()}'), 'appRole': appRole, 'email': emailCtrl.text.trim(), 'hourlyRate': num.tryParse(rateCtrl.text) ?? 0, 'archived': false}); Navigator.pop(context); } }), const SizedBox(height: 40)]))));
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, builder: (context) => StatefulBuilder(builder: (context, setModalState) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(t('add_emp'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 24), buildNeonTextField(controller: nameCtrl, hint: t('name'), icon: Icons.badge_outlined), const SizedBox(height: 12), buildNeonTextField(controller: roleCtrl, hint: t('role'), icon: Icons.work_outline), const SizedBox(height: 12), buildNeonTextField(controller: userCtrl, hint: t('user'), icon: Icons.alternate_email), const SizedBox(height: 12), buildNeonTextField(controller: passCtrl, hint: t('pass'), icon: Icons.lock_outline), const SizedBox(height: 12), buildNeonTextField(controller: emailCtrl, hint: t('email'), icon: Icons.mail_outline), const SizedBox(height: 12), buildNeonTextField(controller: rateCtrl, hint: t('hourly_rate'), icon: Icons.euro), const SizedBox(height: 12), DropdownButtonFormField<String>(value: appRole, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, prefixIcon: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.neonCyan), labelText: t('access_level'), labelStyle: const TextStyle(color: Colors.white38), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [DropdownMenuItem(value: 'employee', child: Text(t('role_employee'))), DropdownMenuItem(value: 'manager', child: Text(t('role_manager')))], onChanged: (val) { if (val != null) setModalState(() => appRole = val); }), const SizedBox(height: 24), buildNeonButton(t('save_cloud'), () { final email = emailCtrl.text.trim(); if (nameCtrl.text.trim().isEmpty || userCtrl.text.trim().length < 3 || passCtrl.text.length < 4 || (email.isNotEmpty && !email.contains('@'))) { showNeonToast(context, t('invalid_input')); return; } { FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).collection('employees').add({'restaurantId': widget.workspaceId, 'name': nameCtrl.text, 'role': roleCtrl.text.isEmpty ? 'Staff' : roleCtrl.text, 'username': userCtrl.text.toLowerCase(), 'password': encodePassword(passCtrl.text, '${widget.workspaceId}:${userCtrl.text.toLowerCase()}'), 'appRole': appRole, 'email': emailCtrl.text.trim(), 'hourlyRate': num.tryParse(rateCtrl.text) ?? 0, 'archived': false}); logAudit(widget.workspaceId, 'admin', 'registered employee ${nameCtrl.text} ($appRole)'); Navigator.pop(context); showNeonToast(context, t('saved')); } }), const SizedBox(height: 40)]))));
   }
 
   // Feature 3: Admin Shift Builder
@@ -192,8 +200,37 @@ class _AdminShellState extends State<AdminShell> {
         buildNeonButton(t('add_location'), () {
           if (_locNameCtrl.text.trim().isEmpty) return;
           wsRef.collection('locations').add({'name': _locNameCtrl.text.trim(), 'archived': false});
+          logAudit(widget.workspaceId, 'admin', 'added location ${_locNameCtrl.text.trim()}');
           _locNameCtrl.clear();
         }),
+        const SizedBox(height: 32),
+        // Feature: audit trail of every schedule/staff mutation.
+        Text(t('audit_log'), style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        const SizedBox(height: 16),
+        StreamBuilder<QuerySnapshot>(
+          stream: wsRef.collection('auditLog').orderBy('time', descending: true).limit(50).snapshots(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const NeonSkeleton(rows: 3);
+            if (snap.data!.docs.isEmpty) return Text(t('none'), style: const TextStyle(color: Colors.white54));
+            return Column(
+              children: snap.data!.docs.map((d) {
+                final e = d.data() as Map<String, dynamic>;
+                final time = (e['time'] ?? '') as String;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text('${e['actor'] ?? '?'} — ${e['action'] ?? ''}', style: const TextStyle(color: Colors.white70, fontSize: 12))),
+                      Text(time.length >= 16 ? time.substring(0, 16).replaceAll('T', ' ') : time, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
         const SizedBox(height: 40),
       ],
     );
