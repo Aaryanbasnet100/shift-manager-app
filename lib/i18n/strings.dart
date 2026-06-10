@@ -52,7 +52,7 @@ final Map<String, Map<String, String>> dict = {
     'clock_in': 'CLOCK IN', 'clock_out': 'CLOCK OUT', 'attendance': 'ATTENDANCE',
     'late': 'LATE', 'early_leave': 'LEFT EARLY', 'active_now': 'ACTIVE',
     'actual': 'Actual', 'scheduled_lbl': 'Scheduled', 'no_entries': 'No attendance entries.',
-    'email': 'Email', 'hourly_rate': 'Hourly rate (€)'
+    'email': 'Email', 'hourly_rate': 'Hourly rate (€)', 'shift_reminder': 'Your shift starts at '
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -100,7 +100,7 @@ final Map<String, Map<String, String>> dict = {
     'clock_in': 'EINSTEMPELN', 'clock_out': 'AUSSTEMPELN', 'attendance': 'ANWESENHEIT',
     'late': 'VERSPÄTET', 'early_leave': 'FRÜHER GEGANGEN', 'active_now': 'AKTIV',
     'actual': 'Ist', 'scheduled_lbl': 'Soll', 'no_entries': 'Keine Anwesenheitseinträge.',
-    'email': 'E-Mail', 'hourly_rate': 'Stundensatz (€)'
+    'email': 'E-Mail', 'hourly_rate': 'Stundensatz (€)', 'shift_reminder': 'Deine Schicht beginnt um '
   }
 };
 

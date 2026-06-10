@@ -27,6 +27,8 @@ class _EmployeeShellState extends State<EmployeeShell> {
   int _tabIndex = 0;
   Timer? _clockTimer;
   String _currentTimeStr = '';
+  // Feature 8: shift reminders posted at most once per shift per session.
+  final Set<String> _remindersSent = {};
 
   @override
   void initState() {
@@ -66,7 +68,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
           IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.white54), onPressed: widget.onLogout)
         ]
       ),
-      endDrawer: buildNotificationDrawer(context, widget.currentEmployee.restaurantId),
+      endDrawer: buildNotificationDrawer(context, widget.currentEmployee.restaurantId, employeeId: widget.currentEmployee.id),
       body: SafeArea(child: screens[_tabIndex]),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex, onTap: (i) => setState(() => _tabIndex = i),
@@ -105,6 +107,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
     final myShifts = widget.allShifts.where((s) => s.employeeId == widget.currentEmployee.id).toList();
     final next = _findNextShift(myShifts, now);
     final nextActive = next != null && isShiftActiveNow(next, now);
+    _maybePostShiftReminder(next, now);
 
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
     final weekDates = List.generate(7, (i) => monday.add(Duration(days: i)));
@@ -222,6 +225,23 @@ class _EmployeeShellState extends State<EmployeeShell> {
         }),
       ],
     );
+  }
+
+  // Feature 8: in-app reminder when the next shift starts within 2 hours.
+  // Deterministic doc id keeps it to one reminder per shift even across
+  // sessions; the local set avoids rewriting it every clock tick.
+  void _maybePostShiftReminder(ShiftData? next, DateTime now) {
+    if (next == null) return;
+    final key = 'rem_${next.id}_${widget.currentEmployee.id}';
+    if (_remindersSent.contains(key)) return;
+    final startMin = effectiveStartMinutes(next);
+    final start = DateTime(now.year, now.month, next.dayOfMonth, startMin ~/ 60, startMin % 60);
+    final diff = start.difference(now);
+    if (diff.isNegative || diff.inMinutes > 120) return;
+    _remindersSent.add(key);
+    FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('notifications').doc(key).set({
+      'msg': '${t('shift_reminder')}${fmtMinutes(startMin)}', 'read': false, 'time': DateTime.now().toIso8601String(), 'targetEmployeeId': widget.currentEmployee.id,
+    });
   }
 
   // Feature 6: time clock — snapshot the scheduled window so the attendance

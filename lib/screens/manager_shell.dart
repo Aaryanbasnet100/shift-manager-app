@@ -51,7 +51,7 @@ class _ManagerShellState extends State<ManagerShell> {
           IconButton(icon: const Icon(Icons.logout, color: Colors.white54), onPressed: widget.onLogout)
         ]
       ),
-      endDrawer: buildNotificationDrawer(context, widget.workspaceId),
+      endDrawer: buildNotificationDrawer(context, widget.workspaceId, employeeId: widget.currentManager.id),
       body: screens[_tabIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex, onTap: (i) => setState(() => _tabIndex = i),
@@ -644,7 +644,7 @@ class _ManagerShellState extends State<ManagerShell> {
                           batch.update(shiftRef, {'employeeId': data['targetId'], 'employeeName': data['targetName']});
                           msg = '${t('swap_approved_for')}$requester';
                         }
-                        batch.set(_wsDoc.collection('notifications').doc(), {'msg': msg, 'read': false, 'time': DateTime.now().toIso8601String()});
+                        batch.set(_wsDoc.collection('notifications').doc(), {'msg': msg, 'read': false, 'time': DateTime.now().toIso8601String(), 'targetEmployeeId': data['requesterId']});
                         await batch.commit();
                       })),
                       const SizedBox(width: 8),
@@ -693,7 +693,7 @@ class _ManagerShellState extends State<ManagerShell> {
         TextButton(onPressed: () {
           WriteBatch batch = FirebaseFirestore.instance.batch();
           batch.update(_wsDoc.collection('vacations').doc(v.id), {'status': status, 'decisionNote': noteCtrl.text.trim()});
-          batch.set(_wsDoc.collection('notifications').doc(), {'msg': '${t('vacation')} ${t(status.toLowerCase())}: ${v.employeeName}', 'read': false, 'time': DateTime.now().toIso8601String()});
+          batch.set(_wsDoc.collection('notifications').doc(), {'msg': '${t('vacation')} ${t(status.toLowerCase())}: ${v.employeeName}', 'read': false, 'time': DateTime.now().toIso8601String(), 'targetEmployeeId': v.employeeId});
           batch.commit();
           Navigator.pop(ctx);
         }, child: Text(status == 'Approved' ? t('approve') : t('deny'), style: TextStyle(color: status == 'Approved' ? AppColors.neonCyan : Colors.redAccent, fontWeight: FontWeight.bold))),
