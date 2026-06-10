@@ -59,7 +59,9 @@ final Map<String, Map<String, String>> dict = {
     'understaffed_days': 'UNDERSTAFFED DAYS (THIS WEEK)', 'none': 'None.',
     'compliance_title': 'COMPLIANCE WARNING',
     'warn_max_day': 'would exceed the max hours per day', 'warn_consec': 'would exceed the max consecutive working days',
-    'warn_rest': 'would get less than the minimum rest before this shift'
+    'warn_rest': 'would get less than the minimum rest before this shift',
+    'locations': 'LOCATIONS', 'location': 'Location', 'all_locations': 'All locations',
+    'add_location': 'ADD LOCATION', 'location_name': 'Location name'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -114,7 +116,9 @@ final Map<String, Map<String, String>> dict = {
     'understaffed_days': 'UNTERBESETZTE TAGE (DIESE WOCHE)', 'none': 'Keine.',
     'compliance_title': 'COMPLIANCE-WARNUNG',
     'warn_max_day': 'würde die max. Stunden pro Tag überschreiten', 'warn_consec': 'würde die max. aufeinanderfolgenden Arbeitstage überschreiten',
-    'warn_rest': 'hätte weniger als die Mindestruhezeit vor dieser Schicht'
+    'warn_rest': 'hätte weniger als die Mindestruhezeit vor dieser Schicht',
+    'locations': 'STANDORTE', 'location': 'Standort', 'all_locations': 'Alle Standorte',
+    'add_location': 'STANDORT HINZUFÜGEN', 'location_name': 'Standortname'
   }
 };
 

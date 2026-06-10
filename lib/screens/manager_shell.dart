@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
@@ -31,13 +32,32 @@ class _ManagerShellState extends State<ManagerShell> {
   int _tabIndex = 0;
   int _weekOffset = 0;
   final _announceCtrl = TextEditingController();
+  // Feature 11: live location list + active schedule filter (null = all).
+  List<LocationData> _locations = [];
+  String? _locationFilter;
+  StreamSubscription? _locSub;
 
   DocumentReference get _wsDoc => FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId);
 
   @override
+  void initState() {
+    super.initState();
+    _locSub = _wsDoc.collection('locations').snapshots().listen((snap) {
+      if (mounted) setState(() => _locations = snap.docs.map((d) => LocationData.fromFirestore(d)).where((l) => !l.archived).toList());
+    });
+  }
+
+  @override
   void dispose() {
+    _locSub?.cancel();
     _announceCtrl.dispose();
     super.dispose();
+  }
+
+  String _locationName(String? id) {
+    if (id == null) return '';
+    final match = _locations.where((l) => l.id == id);
+    return match.isEmpty ? '' : match.first.name;
   }
 
   @override
@@ -303,9 +323,20 @@ class _ManagerShellState extends State<ManagerShell> {
             IconButton(icon: const Icon(Icons.chevron_right_rounded, color: AppColors.neonCyan, size: 28), onPressed: () => setState(() => _weekOffset++)),
           ],
         ),
+        // Feature 11: filter the week by location.
+        if (_locations.isNotEmpty) Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Wrap(
+            spacing: 8, runSpacing: 8,
+            children: [
+              _locationChip(t('all_locations'), _locationFilter == null, () => setState(() => _locationFilter = null)),
+              ..._locations.map((l) => _locationChip(l.name, _locationFilter == l.id, () => setState(() => _locationFilter = l.id))),
+            ],
+          ),
+        ),
         const SizedBox(height: 8),
         ...days.map((d) {
-          final dayShifts = widget.shifts.where((s) => occursOn(s, d)).toList();
+          final dayShifts = widget.shifts.where((s) => occursOn(s, d) && (_locationFilter == null || s.locationId == _locationFilter)).toList();
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -330,7 +361,7 @@ class _ManagerShellState extends State<ManagerShell> {
                     decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3))),
                     child: Row(
                       children: [
-                        Expanded(child: Text('${s.isOpenShift ? t('open_shift') : s.employeeName} • ${s.timeWindow}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: s.isOpenShift ? AppColors.neonCyan : Colors.white, fontSize: 12))),
+                        Expanded(child: Text('${s.isOpenShift ? t('open_shift') : s.employeeName} • ${s.timeWindow}${s.locationId != null && _locationName(s.locationId).isNotEmpty ? ' • ${_locationName(s.locationId)}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: s.isOpenShift ? AppColors.neonCyan : Colors.white, fontSize: 12))),
                         Text('${s.durationHours}h', style: const TextStyle(color: AppColors.neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -341,6 +372,22 @@ class _ManagerShellState extends State<ManagerShell> {
           );
         }),
       ],
+    );
+  }
+
+  Widget _locationChip(String label, bool selected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.neonCyan.withValues(alpha: 0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? AppColors.neonCyan : Colors.white12),
+        ),
+        child: Text(label, style: TextStyle(color: selected ? Colors.white : Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+      ),
     );
   }
 
@@ -374,6 +421,7 @@ class _ManagerShellState extends State<ManagerShell> {
     if (widget.employees.isEmpty) return;
     String empId = widget.employees.first.id;
     int startMin = 9 * 60; int endMin = 17 * 60;
+    String? locId = _locationFilter;
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -385,6 +433,13 @@ class _ManagerShellState extends State<ManagerShell> {
           ...widget.employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
         ], onChanged: (val) { if (val != null) setModalState(() => empId = val); }),
         const SizedBox(height: 12),
+        if (_locations.isNotEmpty) ...[
+          DropdownButtonFormField<String?>(value: locId, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, prefixIcon: const Icon(Icons.place_outlined, color: AppColors.neonCyan), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [
+            DropdownMenuItem<String?>(value: null, child: Text(t('all_locations'))),
+            ..._locations.map((l) => DropdownMenuItem<String?>(value: l.id, child: Text(l.name))),
+          ], onChanged: (val) => setModalState(() => locId = val)),
+          const SizedBox(height: 12),
+        ],
         Row(children: [
           Expanded(child: _timePickerField(ctx, t('start_time'), startMin, (v) => setModalState(() => startMin = v))),
           const SizedBox(width: 12),
@@ -410,6 +465,7 @@ class _ManagerShellState extends State<ManagerShell> {
             'startMinutes': startMin, 'endMinutes': endMin,
             'durationHours': (durMin / 60).round(),
             'isOpenShift': isOpen,
+            'locationId': ?locId,
           });
           if (ctx.mounted) Navigator.pop(ctx);
         }),

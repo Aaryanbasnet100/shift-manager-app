@@ -32,10 +32,22 @@ class ShiftData {
   int? month; int? year; int? startMinutes; int? endMinutes;
   // Feature 5: unassigned shift posted to the open-shift board.
   bool isOpenShift;
-  ShiftData({required this.id, required this.restaurantId, required this.employeeId, required this.employeeName, required this.timeWindow, required this.dayOfMonth, this.durationHours = 8, this.month, this.year, this.startMinutes, this.endMinutes, this.isOpenShift = false});
+  // Feature 11: optional branch; null = workspace-wide (legacy).
+  String? locationId;
+  ShiftData({required this.id, required this.restaurantId, required this.employeeId, required this.employeeName, required this.timeWindow, required this.dayOfMonth, this.durationHours = 8, this.month, this.year, this.startMinutes, this.endMinutes, this.isOpenShift = false, this.locationId});
   factory ShiftData.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
-    return ShiftData(id: doc.id, restaurantId: data['restaurantId'] ?? '', employeeId: data['employeeId'] ?? '', employeeName: data['employeeName'] ?? '', timeWindow: data['timeWindow'] ?? '', dayOfMonth: data['dayOfMonth'] ?? 1, durationHours: data['durationHours'] ?? 8, month: data['month'], year: data['year'], startMinutes: data['startMinutes'], endMinutes: data['endMinutes'], isOpenShift: data['isOpenShift'] ?? false);
+    return ShiftData(id: doc.id, restaurantId: data['restaurantId'] ?? '', employeeId: data['employeeId'] ?? '', employeeName: data['employeeName'] ?? '', timeWindow: data['timeWindow'] ?? '', dayOfMonth: data['dayOfMonth'] ?? 1, durationHours: data['durationHours'] ?? 8, month: data['month'], year: data['year'], startMinutes: data['startMinutes'], endMinutes: data['endMinutes'], isOpenShift: data['isOpenShift'] ?? false, locationId: data['locationId']);
+  }
+}
+
+// Feature 11: a branch/location within a workspace.
+class LocationData {
+  String id; String name; bool archived;
+  LocationData({required this.id, required this.name, this.archived = false});
+  factory LocationData.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return LocationData(id: doc.id, name: data['name'] ?? '', archived: data['archived'] ?? false);
   }
 }
 
