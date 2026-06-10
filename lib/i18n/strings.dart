@@ -25,7 +25,13 @@ final Map<String, Map<String, String>> dict = {
     'tap_swap': 'Tap to request swap', 'no_alerts': 'No alerts.',
     'wd_1': 'MON', 'wd_2': 'TUE', 'wd_3': 'WED', 'wd_4': 'THU', 'wd_5': 'FRI', 'wd_6': 'SAT', 'wd_7': 'SUN',
     'month_1': 'January', 'month_2': 'February', 'month_3': 'March', 'month_4': 'April', 'month_5': 'May', 'month_6': 'June',
-    'month_7': 'July', 'month_8': 'August', 'month_9': 'September', 'month_10': 'October', 'month_11': 'November', 'month_12': 'December'
+    'month_7': 'July', 'month_8': 'August', 'month_9': 'September', 'month_10': 'October', 'month_11': 'November', 'month_12': 'December',
+    'my_team': 'My Team', 'schedule': 'Schedule', 'requests': 'Requests', 'announce': 'Announcements',
+    'this_week': 'this week', 'edit_shift': 'EDIT SHIFT', 'save': 'SAVE',
+    'vac_requests': 'VACATION REQUESTS', 'deny': 'DENY', 'denied': 'Denied',
+    'reason_note': 'Reason note (optional)', 'no_requests': 'No pending requests.',
+    'post': 'POST ANNOUNCEMENT', 'announcement_hint': 'Write an announcement...', 'no_announcements': 'No announcements yet.',
+    'access_level': 'Access Level', 'role_employee': 'Employee', 'role_manager': 'Manager'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -46,7 +52,13 @@ final Map<String, Map<String, String>> dict = {
     'tap_swap': 'Tippen, um Tausch anzufragen', 'no_alerts': 'Keine Warnungen.',
     'wd_1': 'MO', 'wd_2': 'DI', 'wd_3': 'MI', 'wd_4': 'DO', 'wd_5': 'FR', 'wd_6': 'SA', 'wd_7': 'SO',
     'month_1': 'Januar', 'month_2': 'Februar', 'month_3': 'März', 'month_4': 'April', 'month_5': 'Mai', 'month_6': 'Juni',
-    'month_7': 'Juli', 'month_8': 'August', 'month_9': 'September', 'month_10': 'Oktober', 'month_11': 'November', 'month_12': 'Dezember'
+    'month_7': 'Juli', 'month_8': 'August', 'month_9': 'September', 'month_10': 'Oktober', 'month_11': 'November', 'month_12': 'Dezember',
+    'my_team': 'Mein Team', 'schedule': 'Zeitplan', 'requests': 'Anfragen', 'announce': 'Ankündigungen',
+    'this_week': 'diese Woche', 'edit_shift': 'SCHICHT BEARBEITEN', 'save': 'SPEICHERN',
+    'vac_requests': 'URLAUBSANFRAGEN', 'deny': 'ABLEHNEN', 'denied': 'Abgelehnt',
+    'reason_note': 'Begründung (optional)', 'no_requests': 'Keine ausstehenden Anfragen.',
+    'post': 'ANKÜNDIGUNG SENDEN', 'announcement_hint': 'Ankündigung schreiben...', 'no_announcements': 'Noch keine Ankündigungen.',
+    'access_level': 'Zugriffsstufe', 'role_employee': 'Mitarbeiter', 'role_manager': 'Manager'
   }
 };
 

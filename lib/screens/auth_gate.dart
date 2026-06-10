@@ -4,6 +4,7 @@ import '../models/models.dart';
 import 'admin_shell.dart';
 import 'employee_shell.dart';
 import 'login_screen.dart';
+import 'manager_shell.dart';
 import 'super_admin_shell.dart';
 import 'workspace_gate_screen.dart';
 
@@ -85,6 +86,13 @@ class _AuthGateState extends State<AuthGate> {
                   return AdminShell(restaurantName: _activeWorkspace!.name, workspaceId: _activeWorkspace!.id, onLogout: _logout, employees: activeEmployees, shifts: activeShifts, vacations: activeVacations);
                 } else {
                   final currentEmp = activeEmployees.firstWhere((e) => e.id == _currentLoggedInUserId);
+                  // Issue 4: route by the appRole stored on the employee doc.
+                  if (currentEmp.appRole == 'admin') {
+                    return AdminShell(restaurantName: _activeWorkspace!.name, workspaceId: _activeWorkspace!.id, onLogout: _logout, employees: activeEmployees, shifts: activeShifts, vacations: activeVacations);
+                  }
+                  if (currentEmp.appRole == 'manager') {
+                    return ManagerShell(restaurantName: _activeWorkspace!.name, workspaceId: _activeWorkspace!.id, onLogout: _logout, currentManager: currentEmp, employees: activeEmployees, shifts: activeShifts, vacations: activeVacations);
+                  }
                   return EmployeeShell(restaurantName: _activeWorkspace!.name, onLogout: _logout, currentEmployee: currentEmp, allShifts: activeShifts, vacations: activeVacations, allEmployees: activeEmployees);
                 }
               }

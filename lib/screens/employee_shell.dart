@@ -233,7 +233,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
         const SizedBox(height: 24),
         ...myVacations.map((vac) => Container(
           margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
-          child: ListTile(title: Text(vac.dates, style: const TextStyle(color: Colors.white)), trailing: Text(t(vac.status.toLowerCase()), style: TextStyle(color: vac.status == 'Pending' ? Colors.orange : Colors.green, fontWeight: FontWeight.bold))),
+          child: ListTile(title: Text(vac.dates, style: const TextStyle(color: Colors.white)), trailing: Text(t(vac.status.toLowerCase()), style: TextStyle(color: vac.status == 'Pending' ? Colors.orange : (vac.status == 'Denied' ? Colors.redAccent : Colors.green), fontWeight: FontWeight.bold))),
         )),
       ],
     );
