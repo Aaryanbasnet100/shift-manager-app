@@ -66,7 +66,8 @@ final Map<String, Map<String, String>> dict = {
     'max_hours_day': 'Max hours per day', 'max_consec_days': 'Max consecutive days', 'min_rest_hours': 'Min rest hours between shifts',
     'profile': 'PROFILE', 'new_pass': 'New password', 'saved': 'Saved.',
     'deployed': 'Shift deployed.', 'request_sent': 'Request sent.',
-    'invalid_input': 'Check inputs: name required, username 3+ chars, password 4+ chars, valid email.'
+    'invalid_input': 'Check inputs: name required, username 3+ chars, password 4+ chars, valid email.',
+    'repeat_weeks': 'Repeat (weeks)'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -128,7 +129,8 @@ final Map<String, Map<String, String>> dict = {
     'max_hours_day': 'Max. Stunden pro Tag', 'max_consec_days': 'Max. aufeinanderfolgende Tage', 'min_rest_hours': 'Min. Ruhestunden zwischen Schichten',
     'profile': 'PROFIL', 'new_pass': 'Neues Passwort', 'saved': 'Gespeichert.',
     'deployed': 'Schicht zugewiesen.', 'request_sent': 'Anfrage gesendet.',
-    'invalid_input': 'Eingaben prüfen: Name erforderlich, Benutzername 3+ Zeichen, Passwort 4+ Zeichen, gültige E-Mail.'
+    'invalid_input': 'Eingaben prüfen: Name erforderlich, Benutzername 3+ Zeichen, Passwort 4+ Zeichen, gültige E-Mail.',
+    'repeat_weeks': 'Wiederholen (Wochen)'
   }
 };
 

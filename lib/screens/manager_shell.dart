@@ -336,42 +336,65 @@ class _ManagerShellState extends State<ManagerShell> {
         const SizedBox(height: 8),
         ...days.map((d) {
           final dayShifts = widget.shifts.where((s) => occursOn(s, d) && (_locationFilter == null || s.locationId == _locationFilter)).toList();
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          Widget shiftRow(ShiftData s) => Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3))),
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('${t('wd_${d.weekday}')} ${d.day}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.neonCyan, size: 20), onPressed: () => _openCreateShiftSheet(d)),
-                  ],
-                ),
-                if (dayShifts.isEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t('no_shifts'), style: const TextStyle(color: Colors.white38, fontSize: 12))),
-                ...dayShifts.map((s) => InkWell(
-                  onTap: () => _openEditShiftSheet(s),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3))),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text('${s.isOpenShift ? t('open_shift') : s.employeeName} • ${s.timeWindow}${s.locationId != null && _locationName(s.locationId).isNotEmpty ? ' • ${_locationName(s.locationId)}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: s.isOpenShift ? AppColors.neonCyan : Colors.white, fontSize: 12))),
-                        Text('${s.durationHours}h', style: const TextStyle(color: AppColors.neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                )),
+                Expanded(child: Text('${s.isOpenShift ? t('open_shift') : s.employeeName} • ${s.timeWindow}${s.locationId != null && _locationName(s.locationId).isNotEmpty ? ' • ${_locationName(s.locationId)}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: s.isOpenShift ? AppColors.neonCyan : Colors.white, fontSize: 12))),
+                Text('${s.durationHours}h', style: const TextStyle(color: AppColors.neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
               ],
+            ),
+          );
+
+          // Drop target: dragging a shift chip onto another day reschedules it.
+          return DragTarget<ShiftData>(
+            onAcceptWithDetails: (details) => _moveShift(details.data, d),
+            builder: (context, candidates, _) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: candidates.isNotEmpty ? AppColors.neonCyan : Colors.white.withValues(alpha: 0.05))),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('${t('wd_${d.weekday}')} ${d.day}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                      IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.neonCyan, size: 20), onPressed: () => _openCreateShiftSheet(d)),
+                    ],
+                  ),
+                  if (dayShifts.isEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t('no_shifts'), style: const TextStyle(color: Colors.white38, fontSize: 12))),
+                  ...dayShifts.map((s) => Draggable<ShiftData>(
+                    data: s,
+                    feedback: Material(color: Colors.transparent, child: SizedBox(width: 260, child: shiftRow(s))),
+                    childWhenDragging: Opacity(opacity: 0.3, child: shiftRow(s)),
+                    child: InkWell(
+                      onTap: () => _openEditShiftSheet(s),
+                      borderRadius: BorderRadius.circular(10),
+                      child: shiftRow(s),
+                    ),
+                  )),
+                ],
+              ),
             ),
           );
         }),
       ],
     );
+  }
+
+  // Drag-to-reschedule: same one-shift-per-person-per-day rule as creation.
+  void _moveShift(ShiftData s, DateTime target) {
+    if (occursOn(s, target)) return;
+    if (!s.isOpenShift && widget.shifts.any((x) => x.id != s.id && x.employeeId == s.employeeId && occursOn(x, target))) {
+      showNeonToast(context, t('conflict_title'));
+      return;
+    }
+    _wsDoc.collection('shifts').doc(s.id).update({'dayOfMonth': target.day, 'month': target.month, 'year': target.year});
+    showNeonToast(context, t('saved'));
   }
 
   Widget _locationChip(String label, bool selected, VoidCallback onTap) {
@@ -421,6 +444,7 @@ class _ManagerShellState extends State<ManagerShell> {
     String empId = widget.employees.first.id;
     int startMin = 9 * 60; int endMin = 17 * 60;
     String? locId = _locationFilter;
+    int repeatWeeks = 1;
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -444,6 +468,9 @@ class _ManagerShellState extends State<ManagerShell> {
           const SizedBox(width: 12),
           Expanded(child: _timePickerField(ctx, t('end_time'), endMin, (v) => setModalState(() => endMin = v))),
         ]),
+        const SizedBox(height: 12),
+        // Recurring shifts: deploy the same slot for the next N weeks.
+        DropdownButtonFormField<int>(value: repeatWeeks, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, prefixIcon: const Icon(Icons.repeat, color: AppColors.neonCyan), labelText: t('repeat_weeks'), labelStyle: const TextStyle(color: Colors.white38), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [1, 2, 4, 8].map((w) => DropdownMenuItem(value: w, child: Text('$w'))).toList(), onChanged: (val) { if (val != null) setModalState(() => repeatWeeks = val); }),
         const SizedBox(height: 24),
         buildNeonButton(t('deploy_shift'), () async {
           final isOpen = empId.isEmpty;
@@ -457,15 +484,22 @@ class _ManagerShellState extends State<ManagerShell> {
           }
           final emp = isOpen ? null : widget.employees.firstWhere((e) => e.id == empId);
           final durMin = (endMin - startMin + 1440) % 1440;
-          _wsDoc.collection('shifts').add({
-            'restaurantId': widget.workspaceId, 'employeeId': emp?.id ?? '', 'employeeName': emp?.name ?? '',
-            'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
-            'dayOfMonth': date.day, 'month': date.month, 'year': date.year,
-            'startMinutes': startMin, 'endMinutes': endMin,
-            'durationHours': (durMin / 60).round(),
-            'isOpenShift': isOpen,
-            'locationId': ?locId,
-          });
+          final batch = FirebaseFirestore.instance.batch();
+          for (int i = 0; i < repeatWeeks; i++) {
+            final dt = date.add(Duration(days: 7 * i));
+            // Later occurrences skip conflicts silently instead of prompting.
+            if (!isOpen && i > 0 && widget.shifts.any((x) => x.employeeId == empId && occursOn(x, dt))) continue;
+            batch.set(_wsDoc.collection('shifts').doc(), {
+              'restaurantId': widget.workspaceId, 'employeeId': emp?.id ?? '', 'employeeName': emp?.name ?? '',
+              'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
+              'dayOfMonth': dt.day, 'month': dt.month, 'year': dt.year,
+              'startMinutes': startMin, 'endMinutes': endMin,
+              'durationHours': (durMin / 60).round(),
+              'isOpenShift': isOpen,
+              'locationId': ?locId,
+            });
+          }
+          batch.commit();
           if (ctx.mounted) Navigator.pop(ctx);
           if (mounted) showNeonToast(context, t('deployed'));
         }),
