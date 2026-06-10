@@ -5,6 +5,7 @@ import '../i18n/strings.dart';
 import '../models/models.dart';
 import '../services/shift_conflict_engine.dart';
 import '../theme/app_colors.dart';
+import '../widgets/neon_calendar.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
 
@@ -163,58 +164,48 @@ class _EmployeeShellState extends State<EmployeeShell> {
         _buildTopHeader(),
         Text(t('calendar').toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white54)),
         const SizedBox(height: 24),
-        // Feature 9: Tappable Self-Schedule Grid
-        GridView.builder(
-          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, crossAxisSpacing: 8, mainAxisSpacing: 8),
-          itemCount: 31,
-          itemBuilder: (context, index) {
-            int day = index + 1;
-            bool hasShift = myShifts.any((s) => s.dayOfMonth == day);
-            return InkWell(
-              // Issue 2: self-scheduling is a privileged action — plain
-              // employees get a read-only calendar (onTap disabled).
-              onTap: !widget.currentEmployee.canManageShifts ? null : () {
-                String selectedSlot = t('morning');
-                showModalBottomSheet(
-                  context: context, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                  builder: (ctx) => StatefulBuilder(
-                    builder: (ctx, setModalState) => Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('${t('schedule_for')}$day', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 24),
-                          DropdownButtonFormField<String>(
-                            value: selectedSlot, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
-                            items: [t('morning'), t('afternoon'), t('night')].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                            onChanged: (val) { if(val != null) setModalState(() => selectedSlot = val); },
-                          ),
-                          const SizedBox(height: 24),
-                          buildNeonButton(t('deploy_shift'), () async {
-                            Navigator.pop(ctx);
-                            if (await checkShiftConflict(context, widget.allShifts, widget.currentEmployee.id, day)) {
-                              FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('shifts').add({
-                                'restaurantId': widget.currentEmployee.restaurantId, 'employeeId': widget.currentEmployee.id, 'employeeName': widget.currentEmployee.name, 'timeWindow': selectedSlot, 'dayOfMonth': day, 'durationHours': 8
-                              });
-                            }
-                          })
-                        ],
-                      ),
-                    )
-                  )
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(color: hasShift ? AppColors.neonPurple.withValues(alpha: 0.3) : AppColors.surface, borderRadius: BorderRadius.circular(8), border: Border.all(color: hasShift ? AppColors.neonPurple : Colors.white.withValues(alpha: 0.05))),
-                child: Center(child: Text('$day', style: TextStyle(color: hasShift ? Colors.white : Colors.white54, fontWeight: FontWeight.bold))),
-              ),
-            );
-          },
-        )
+        // Feature 9: Self-Schedule Calendar (Issue 3 redesign).
+        // Issue 2: self-scheduling is a privileged action — plain employees
+        // get a read-only calendar (onDayTap disabled).
+        NeonCalendar(
+          shifts: myShifts,
+          onDayTap: !widget.currentEmployee.canManageShifts ? null : (day) => _openSelfScheduleSheet(day),
+        ),
       ],
+    );
+  }
+
+  void _openSelfScheduleSheet(int day) {
+    String selectedSlot = t('morning');
+    showModalBottomSheet(
+      context: context, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${t('schedule_for')}$day', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 24),
+              DropdownButtonFormField<String>(
+                value: selectedSlot, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                items: [t('morning'), t('afternoon'), t('night')].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                onChanged: (val) { if(val != null) setModalState(() => selectedSlot = val); },
+              ),
+              const SizedBox(height: 24),
+              buildNeonButton(t('deploy_shift'), () async {
+                Navigator.pop(ctx);
+                if (await checkShiftConflict(context, widget.allShifts, widget.currentEmployee.id, day)) {
+                  FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('shifts').add({
+                    'restaurantId': widget.currentEmployee.restaurantId, 'employeeId': widget.currentEmployee.id, 'employeeName': widget.currentEmployee.name, 'timeWindow': selectedSlot, 'dayOfMonth': day, 'durationHours': 8
+                  });
+                }
+              })
+            ],
+          ),
+        )
+      )
     );
   }
 

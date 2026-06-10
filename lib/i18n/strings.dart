@@ -22,7 +22,10 @@ final Map<String, Map<String, String>> dict = {
     'add_emp': 'REGISTER STAFF', 'role': 'Role', 'save_cloud': 'SAVE TO CLOUD', 'directory': 'Directory', 'roster': 'Master Roster', 'no_shifts': 'No active shifts.',
     'manager_prefix': 'MANAGER', 'name': 'Name', 'day_of_month': 'Day of Month (1-31)', 'day': 'Day',
     'wants_assign': 'wants to assign shift to', 'swap_approved_for': 'Swap approved for ',
-    'tap_swap': 'Tap to request swap', 'no_alerts': 'No alerts.'
+    'tap_swap': 'Tap to request swap', 'no_alerts': 'No alerts.',
+    'wd_1': 'MON', 'wd_2': 'TUE', 'wd_3': 'WED', 'wd_4': 'THU', 'wd_5': 'FRI', 'wd_6': 'SAT', 'wd_7': 'SUN',
+    'month_1': 'January', 'month_2': 'February', 'month_3': 'March', 'month_4': 'April', 'month_5': 'May', 'month_6': 'June',
+    'month_7': 'July', 'month_8': 'August', 'month_9': 'September', 'month_10': 'October', 'month_11': 'November', 'month_12': 'December'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -40,7 +43,10 @@ final Map<String, Map<String, String>> dict = {
     'add_emp': 'MITARBEITER REGISTRIEREN', 'role': 'Rolle', 'save_cloud': 'IN CLOUD SPEICHERN', 'directory': 'Verzeichnis', 'roster': 'Dienstplan', 'no_shifts': 'Keine aktiven Schichten.',
     'manager_prefix': 'MANAGER', 'name': 'Name', 'day_of_month': 'Tag des Monats (1-31)', 'day': 'Tag',
     'wants_assign': 'möchte Schicht übertragen an', 'swap_approved_for': 'Tausch genehmigt für ',
-    'tap_swap': 'Tippen, um Tausch anzufragen', 'no_alerts': 'Keine Warnungen.'
+    'tap_swap': 'Tippen, um Tausch anzufragen', 'no_alerts': 'Keine Warnungen.',
+    'wd_1': 'MO', 'wd_2': 'DI', 'wd_3': 'MI', 'wd_4': 'DO', 'wd_5': 'FR', 'wd_6': 'SA', 'wd_7': 'SO',
+    'month_1': 'Januar', 'month_2': 'Februar', 'month_3': 'März', 'month_4': 'April', 'month_5': 'Mai', 'month_6': 'Juni',
+    'month_7': 'Juli', 'month_8': 'August', 'month_9': 'September', 'month_10': 'Oktober', 'month_11': 'November', 'month_12': 'Dezember'
   }
 };
 
