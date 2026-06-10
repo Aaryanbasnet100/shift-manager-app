@@ -198,7 +198,7 @@ class _ManagerShellState extends State<ManagerShell> {
                 int actualMin = 0, schedMin = 0;
                 for (final e in entries) {
                   if (e['month'] != now.month || e['year'] != now.year) continue;
-                  final ci = DateTime.tryParse(e['clockIn'] ?? ''); final co = e['clockOut'] != null ? DateTime.tryParse(e['clockOut']) : null;
+                  final ci = DateTime.tryParse(e['clockIn'] ?? ''); final co = DateTime.tryParse(e['clockOut'] ?? '');
                   if (ci != null && co != null) actualMin += co.difference(ci).inMinutes;
                   final ss = e['scheduledStartMinutes'] as int?; final se = e['scheduledEndMinutes'] as int?;
                   if (ss != null && se != null) schedMin += (se - ss + 1440) % 1440;
@@ -223,7 +223,7 @@ class _ManagerShellState extends State<ManagerShell> {
                           final se = e['scheduledEndMinutes'] as int?;
                           final isLate = ss != null && ciMin > ss + 5;
                           final leftEarly = co != null && se != null && se > (ss ?? 0) && coMin! < se - 5;
-                          final actual = co != null ? co.difference(ci).inMinutes : null;
+                          final actual = co?.difference(ci).inMinutes;
 
                           Widget badge(String label, Color color) => Container(
                             margin: const EdgeInsets.only(left: 6),
