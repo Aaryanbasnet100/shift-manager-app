@@ -53,11 +53,34 @@ class _AuthGateState extends State<AuthGate> {
             _userRole = s['role'] ?? '';
             _currentLoggedInUserId = s['userId'] ?? '';
             _isLoggedIn = _userRole.isNotEmpty;
+            _migrateLegacyShiftDates(doc.id);
           }
         }
       }
     } catch (_) {}
     if (mounted) setState(() => _restoring = false);
+  }
+
+  // One-time per workspace: stamp legacy shifts (no month/year) with the
+  // current month so they stop repeating in every month. Guarded by a flag
+  // on the tenant doc; safe to call repeatedly.
+  Future<void> _migrateLegacyShiftDates(String wsId) async {
+    try {
+      final ws = _db.collection('restaurants').doc(wsId);
+      final tenant = await ws.get();
+      if ((tenant.data()?['shiftDatesMigrated'] ?? false) == true) return;
+      final shifts = await ws.collection('shifts').get();
+      final now = DateTime.now();
+      final batch = _db.batch();
+      for (final d in shifts.docs) {
+        final data = d.data();
+        if (data['month'] == null || data['year'] == null) {
+          batch.update(d.reference, {'month': now.month, 'year': now.year});
+        }
+      }
+      batch.set(ws, {'shiftDatesMigrated': true}, SetOptions(merge: true));
+      await batch.commit();
+    } catch (_) {}
   }
 
   Future<void> _saveSession() async {
@@ -74,6 +97,7 @@ class _AuthGateState extends State<AuthGate> {
     final doc = await _db.collection('restaurants').doc(cleanId).get();
     if (doc.exists) {
       setState(() => _activeWorkspace = RestaurantTenant(id: doc.id, name: doc['name'], adminPassword: doc['adminPassword']));
+      _migrateLegacyShiftDates(cleanId);
     } else if (cleanId == 'mcd_01') {
       await _db.collection('restaurants').doc('mcd_01').set({'name': "McDonald's Central", 'adminPassword': "admin"});
       await _db.collection('restaurants').doc('mcd_01').collection('employees').add({'restaurantId': 'mcd_01', 'name': 'Elena Valdes', 'role': 'Shift Lead', 'username': 'elena', 'password': '123'});

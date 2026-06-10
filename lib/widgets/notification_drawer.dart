@@ -17,7 +17,7 @@ Widget buildNotificationDrawer(BuildContext context, String restaurantId, {Strin
           Padding(padding: const EdgeInsets.all(24.0), child: Text(t('notifications'), style: const TextStyle(color: AppColors.neonCyan, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5))),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('restaurants').doc(restaurantId).collection('notifications').orderBy('time', descending: true).snapshots(),
+              stream: FirebaseFirestore.instance.collection('restaurants').doc(restaurantId).collection('notifications').orderBy('time', descending: true).limit(50).snapshots(),
               builder: (context, snap) {
                 if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.neonCyan));
                 final docs = snap.data!.docs.where((d) {

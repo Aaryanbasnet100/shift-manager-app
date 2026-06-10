@@ -825,7 +825,7 @@ class _ManagerShellState extends State<ManagerShell> {
         }),
         const SizedBox(height: 32),
         StreamBuilder<QuerySnapshot>(
-          stream: _wsDoc.collection('announcements').orderBy('createdAt', descending: true).snapshots(),
+          stream: _wsDoc.collection('announcements').orderBy('createdAt', descending: true).limit(30).snapshots(),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.neonCyan));
             if (snap.data!.docs.isEmpty) return Text(t('no_announcements'), style: const TextStyle(color: Colors.white54));
