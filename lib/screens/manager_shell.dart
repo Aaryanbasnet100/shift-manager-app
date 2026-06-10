@@ -397,6 +397,8 @@ class _ManagerShellState extends State<ManagerShell> {
             final emp = widget.employees.firstWhere((e) => e.id == empId);
             if (!await _availabilityOk(ctx, emp, date)) return;
             if (!ctx.mounted) return;
+            if (!await _complianceOk(ctx, emp, date, startMin, endMin)) return;
+            if (!ctx.mounted) return;
             if (!await checkShiftConflict(ctx, widget.shifts, empId, date)) return;
           }
           final emp = isOpen ? null : widget.employees.firstWhere((e) => e.id == empId);
@@ -444,6 +446,48 @@ class _ManagerShellState extends State<ManagerShell> {
         const SizedBox(height: 32),
       ]),
     )));
+  }
+
+  // Feature 10: non-blocking compliance check against the workspace rules
+  // (settings map on the tenant doc, with sensible defaults when unset).
+  Future<bool> _complianceOk(BuildContext ctx, EmployeeData emp, DateTime date, int startMin, int endMin) async {
+    final tenantDoc = await FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).get();
+    final settings = (tenantDoc.data()?['settings'] ?? {}) as Map<String, dynamic>;
+    final maxDay = (settings['maxHoursPerDay'] ?? 10) as num;
+    final maxConsec = (settings['maxConsecutiveDays'] ?? 6) as num;
+    final minRest = (settings['minRestHours'] ?? 11) as num;
+    final durH = (((endMin - startMin + 1440) % 1440) / 60).round();
+    final warnings = <String>[];
+
+    final dayHours = widget.shifts.where((s) => s.employeeId == emp.id && occursOn(s, date)).fold<int>(0, (a, s) => a + s.durationHours);
+    if (dayHours + durH > maxDay) warnings.add(t('warn_max_day'));
+
+    int streak = 1; // the new shift's day
+    var d = date.subtract(const Duration(days: 1));
+    while (widget.shifts.any((s) => s.employeeId == emp.id && occursOn(s, d))) { streak++; d = d.subtract(const Duration(days: 1)); }
+    if (streak > maxConsec) warnings.add(t('warn_consec'));
+
+    final prevDay = date.subtract(const Duration(days: 1));
+    final prevShifts = widget.shifts.where((s) => s.employeeId == emp.id && occursOn(s, prevDay)).toList();
+    if (prevShifts.isNotEmpty) {
+      final prevEnd = prevShifts.map((s) => effectiveEndMinutes(s) % 1440).reduce((a, b) => a > b ? a : b);
+      final restMin = (1440 - prevEnd) + startMin;
+      if (restMin < minRest * 60) warnings.add(t('warn_rest'));
+    }
+
+    if (warnings.isEmpty) return true;
+    if (!ctx.mounted) return false;
+    final proceed = await showDialog<bool>(context: ctx, builder: (dCtx) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.orange)),
+      title: Text(t('compliance_title'), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w900)),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: warnings.map((w) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('• ${emp.name} $w', style: const TextStyle(color: Colors.white70)))).toList()),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(t('cancel'), style: const TextStyle(color: Colors.white54))),
+        TextButton(onPressed: () => Navigator.pop(dCtx, true), child: Text(t('proceed'), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))),
+      ],
+    ));
+    return proceed ?? false;
   }
 
   // Feature 4: non-blocking scheduler warning — true means go ahead.

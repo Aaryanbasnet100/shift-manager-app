@@ -56,7 +56,10 @@ final Map<String, Map<String, String>> dict = {
     'reports': 'Reports', 'scheduled_hours': 'SCHEDULED HOURS', 'worked_hours': 'WORKED HOURS',
     'labor_cost': 'LABOR COST (SCHEDULED)', 'late_starts': 'LATE', 'early_leaves': 'EARLY',
     'hours_by_employee': 'HOURS BY EMPLOYEE', 'overtime_alerts': 'OVERTIME ALERTS',
-    'understaffed_days': 'UNDERSTAFFED DAYS (THIS WEEK)', 'none': 'None.'
+    'understaffed_days': 'UNDERSTAFFED DAYS (THIS WEEK)', 'none': 'None.',
+    'compliance_title': 'COMPLIANCE WARNING',
+    'warn_max_day': 'would exceed the max hours per day', 'warn_consec': 'would exceed the max consecutive working days',
+    'warn_rest': 'would get less than the minimum rest before this shift'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -108,7 +111,10 @@ final Map<String, Map<String, String>> dict = {
     'reports': 'Berichte', 'scheduled_hours': 'GEPLANTE STUNDEN', 'worked_hours': 'GELEISTETE STUNDEN',
     'labor_cost': 'PERSONALKOSTEN (GEPLANT)', 'late_starts': 'VERSPÄTET', 'early_leaves': 'FRÜHER',
     'hours_by_employee': 'STUNDEN PRO MITARBEITER', 'overtime_alerts': 'ÜBERSTUNDEN-WARNUNGEN',
-    'understaffed_days': 'UNTERBESETZTE TAGE (DIESE WOCHE)', 'none': 'Keine.'
+    'understaffed_days': 'UNTERBESETZTE TAGE (DIESE WOCHE)', 'none': 'Keine.',
+    'compliance_title': 'COMPLIANCE-WARNUNG',
+    'warn_max_day': 'würde die max. Stunden pro Tag überschreiten', 'warn_consec': 'würde die max. aufeinanderfolgenden Arbeitstage überschreiten',
+    'warn_rest': 'hätte weniger als die Mindestruhezeit vor dieser Schicht'
   }
 };
 
