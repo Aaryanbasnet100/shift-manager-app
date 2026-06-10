@@ -70,7 +70,8 @@ class _ManagerShellState extends State<ManagerShell> {
         actions: [
           // Feature 9: reports & analytics
           IconButton(icon: const Icon(Icons.insights, color: AppColors.neonCyan), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReportsScreen(workspaceId: widget.workspaceId, employees: widget.employees, shifts: widget.shifts)))),
-          IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(context).openEndDrawer()),
+          // Builder: Scaffold.of needs a context *below* this Scaffold.
+          Builder(builder: (ctx) => IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(ctx).openEndDrawer())),
           IconButton(icon: const Icon(Icons.logout, color: Colors.white54), onPressed: widget.onLogout)
         ]
       ),

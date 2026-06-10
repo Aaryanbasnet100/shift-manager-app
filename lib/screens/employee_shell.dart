@@ -65,8 +65,9 @@ class _EmployeeShellState extends State<EmployeeShell> {
         actions: [
           // Feature 12: profile & password change
           IconButton(icon: const Icon(Icons.person_outline, color: Colors.white54), onPressed: _openProfileSheet),
-          // Feature 6 Trigger: Notification Bell
-          IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(context).openEndDrawer()),
+          // Feature 6 Trigger: Notification Bell.
+          // Builder: Scaffold.of needs a context *below* this Scaffold.
+          Builder(builder: (ctx) => IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(ctx).openEndDrawer())),
           IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.white54), onPressed: widget.onLogout)
         ]
       ),
