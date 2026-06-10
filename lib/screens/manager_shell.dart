@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../widgets/neon_stat_card.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
+import 'reports_screen.dart';
 
 // ==========================================
 // MANAGER SHELL (Issue 4)
@@ -47,6 +48,8 @@ class _ManagerShellState extends State<ManagerShell> {
         backgroundColor: AppColors.background, elevation: 0,
         title: Text('${t('manager_prefix')}: ${widget.restaurantName}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 14, fontWeight: FontWeight.w900)),
         actions: [
+          // Feature 9: reports & analytics
+          IconButton(icon: const Icon(Icons.insights, color: AppColors.neonCyan), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReportsScreen(workspaceId: widget.workspaceId, employees: widget.employees, shifts: widget.shifts)))),
           IconButton(icon: const Badge(backgroundColor: AppColors.neonCyan, child: Icon(Icons.notifications_none, color: Colors.white54)), onPressed: () => Scaffold.of(context).openEndDrawer()),
           IconButton(icon: const Icon(Icons.logout, color: Colors.white54), onPressed: widget.onLogout)
         ]
