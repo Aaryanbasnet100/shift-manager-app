@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
 import '../services/austria_time.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
+import '../widgets/neon_widgets.dart';
 
 // ==========================================
 // REPORTS & ANALYTICS (Feature 9)
@@ -147,6 +149,32 @@ class ReportsScreen extends StatelessWidget {
                   child: Text('${t('wd_${d.weekday}')} ${d.day}', style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w900)),
                 )).toList(),
               ),
+              const SizedBox(height: 32),
+              // CSV export — copied to the clipboard, ready for Excel/Sheets.
+              buildNeonButton(t('export_schedule'), () {
+                final buf = StringBuffer('Employee,Day,Month,Year,Start,End,Hours,OpenShift,Location\n');
+                for (final s in monthShifts) {
+                  buf.writeln('"${s.employeeName}",${s.dayOfMonth},${s.month ?? now.month},${s.year ?? now.year},${fmtMinutes(effectiveStartMinutes(s))},${fmtMinutes(effectiveEndMinutes(s) % 1440)},${s.durationHours},${s.isOpenShift},${s.locationId ?? ''}');
+                }
+                Clipboard.setData(ClipboardData(text: buf.toString()));
+                showNeonToast(context, t('csv_copied'));
+              }),
+              const SizedBox(height: 12),
+              buildNeonButton(t('export_attendance'), () {
+                final buf = StringBuffer('Employee,Date,ClockIn,ClockOut,Minutes\n');
+                if (snap.hasData) {
+                  for (final d in snap.data!.docs) {
+                    final e = d.data() as Map<String, dynamic>;
+                    if (e['month'] != now.month || e['year'] != now.year) continue;
+                    final ci = DateTime.tryParse(e['clockIn'] ?? '');
+                    final co = DateTime.tryParse(e['clockOut'] ?? '');
+                    if (ci == null) continue;
+                    buf.writeln('"${e['employeeName'] ?? ''}",${ci.day}.${ci.month}.${ci.year},${fmtMinutes(ci.hour * 60 + ci.minute)},${co != null ? fmtMinutes(co.hour * 60 + co.minute) : ''},${co != null ? co.difference(ci).inMinutes : ''}');
+                  }
+                }
+                Clipboard.setData(ClipboardData(text: buf.toString()));
+                showNeonToast(context, t('csv_copied'));
+              }),
               const SizedBox(height: 40),
             ],
           );
