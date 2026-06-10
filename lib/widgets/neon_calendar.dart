@@ -10,7 +10,7 @@ import '../theme/app_colors.dart';
 class NeonCalendar extends StatefulWidget {
   final List<ShiftData> shifts;
   // Null = read-only calendar (plain employees); tapping only selects.
-  final void Function(int day)? onDayTap;
+  final void Function(DateTime date)? onDayTap;
   const NeonCalendar({super.key, required this.shifts, this.onDayTap});
 
   @override
@@ -37,6 +37,9 @@ class _NeonCalendarState extends State<NeonCalendar> {
   Widget build(BuildContext context) {
     final daysInMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0).day;
     final leadingBlanks = DateTime(_visibleMonth.year, _visibleMonth.month, 1).weekday - 1;
+    // Schedule v2: dated shifts only show in their own month; legacy shifts
+    // (null month/year) keep appearing in every month.
+    final monthShifts = widget.shifts.where((s) => (s.month == null || s.month == _visibleMonth.month) && (s.year == null || s.year == _visibleMonth.year)).toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -61,7 +64,7 @@ class _NeonCalendarState extends State<NeonCalendar> {
             itemBuilder: (context, index) {
               if (index < leadingBlanks) return const SizedBox.shrink();
               final day = index - leadingBlanks + 1;
-              final dayShifts = widget.shifts.where((s) => s.dayOfMonth == day).toList();
+              final dayShifts = monthShifts.where((s) => s.dayOfMonth == day).toList();
               final hasShift = dayShifts.isNotEmpty;
               final isSelected = _selectedDay == day;
 
@@ -69,7 +72,7 @@ class _NeonCalendarState extends State<NeonCalendar> {
                 borderRadius: BorderRadius.circular(10),
                 onTap: () {
                   setState(() => _selectedDay = day);
-                  widget.onDayTap?.call(day);
+                  widget.onDayTap?.call(DateTime(_visibleMonth.year, _visibleMonth.month, day));
                 },
                 child: Container(
                   padding: const EdgeInsets.all(3),

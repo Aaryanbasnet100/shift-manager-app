@@ -106,8 +106,8 @@ class _EmployeeShellState extends State<EmployeeShell> {
     final nextActive = next != null && isShiftActiveNow(next, now);
 
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
-    final weekDayNums = List.generate(7, (i) => monday.add(Duration(days: i))).where((d) => d.month == now.month).map((d) => d.day).toSet();
-    final weekHours = myShifts.where((s) => weekDayNums.contains(s.dayOfMonth)).fold<int>(0, (a, s) => a + s.durationHours);
+    final weekDates = List.generate(7, (i) => monday.add(Duration(days: i)));
+    final weekHours = myShifts.where((s) => weekDates.any((d) => occursOn(s, d))).fold<int>(0, (a, s) => a + s.durationHours);
     final pendingVacs = widget.vacations.where((v) => v.employeeName == widget.currentEmployee.name && v.status == 'Pending').length;
 
     return ListView(
@@ -141,8 +141,8 @@ class _EmployeeShellState extends State<EmployeeShell> {
                 if (!nextActive) ...[
                   const SizedBox(height: 12),
                   Builder(builder: (context) {
-                    final startHour = parseWindow(next.timeWindow)?.start ?? 0;
-                    final diff = DateTime(now.year, now.month, next.dayOfMonth, startHour).difference(now);
+                    final startMin = effectiveStartMinutes(next);
+                    final diff = DateTime(now.year, now.month, next.dayOfMonth, startMin ~/ 60, startMin % 60).difference(now);
                     final d = diff.inDays; final h = diff.inHours % 24; final m = diff.inMinutes % 60;
                     return Text('${t('starts_in')} $d${t('days_short')} $h${t('hours_short')} $m${t('min_short')}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 20, fontWeight: FontWeight.w900));
                   }),
@@ -170,25 +170,30 @@ class _EmployeeShellState extends State<EmployeeShell> {
     );
   }
 
-  // Earliest shift (this month) that hasn't ended yet, by day + start hour.
+  // Earliest shift (this month) that hasn't ended yet, by day + start time.
   ShiftData? _findNextShift(List<ShiftData> shifts, DateTime now) {
     ShiftData? best;
     DateTime? bestStart;
     for (final s in shifts) {
       if (s.dayOfMonth < now.day) continue;
-      final w = parseWindow(s.timeWindow);
-      final startHour = w?.start ?? 0;
-      final endHour = w == null ? 24 : (w.end > w.start ? w.end : 24);
-      final end = DateTime(now.year, now.month, s.dayOfMonth, endHour);
+      if (s.month != null && s.month != now.month) continue;
+      if (s.year != null && s.year != now.year) continue;
+      final startMin = effectiveStartMinutes(s);
+      var endMin = effectiveEndMinutes(s);
+      if (endMin <= startMin) endMin = 1440; // overnight: treat as ending at midnight
+      final end = DateTime(now.year, now.month, s.dayOfMonth, endMin ~/ 60, endMin % 60);
       if (end.isBefore(now)) continue;
-      final start = DateTime(now.year, now.month, s.dayOfMonth, startHour);
+      final start = DateTime(now.year, now.month, s.dayOfMonth, startMin ~/ 60, startMin % 60);
       if (bestStart == null || start.isBefore(bestStart)) { best = s; bestStart = start; }
     }
     return best;
   }
 
   Widget _buildGraphView() {
-    final myShifts = widget.allShifts.where((s) => s.employeeId == widget.currentEmployee.id).toList();
+    // Monthly view: dated shifts from the current month plus legacy
+    // (undated) shifts, so the hours tracker stays accurate.
+    final now = austriaNow();
+    final myShifts = widget.allShifts.where((s) => s.employeeId == widget.currentEmployee.id && (s.month == null || s.month == now.month) && (s.year == null || s.year == now.year)).toList();
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -256,13 +261,13 @@ class _EmployeeShellState extends State<EmployeeShell> {
         // get a read-only calendar (onDayTap disabled).
         NeonCalendar(
           shifts: myShifts,
-          onDayTap: !widget.currentEmployee.canManageShifts ? null : (day) => _openSelfScheduleSheet(day),
+          onDayTap: !widget.currentEmployee.canManageShifts ? null : (date) => _openSelfScheduleSheet(date),
         ),
       ],
     );
   }
 
-  void _openSelfScheduleSheet(int day) {
+  void _openSelfScheduleSheet(DateTime date) {
     String selectedSlot = t('morning');
     showModalBottomSheet(
       context: context, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -272,7 +277,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('${t('schedule_for')}$day', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+              Text('${t('schedule_for')}${date.day} ${t('month_${date.month}')}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
               const SizedBox(height: 24),
               DropdownButtonFormField<String>(
                 value: selectedSlot, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white),
@@ -283,9 +288,13 @@ class _EmployeeShellState extends State<EmployeeShell> {
               const SizedBox(height: 24),
               buildNeonButton(t('deploy_shift'), () async {
                 Navigator.pop(ctx);
-                if (await checkShiftConflict(context, widget.allShifts, widget.currentEmployee.id, day)) {
+                if (await checkShiftConflict(context, widget.allShifts, widget.currentEmployee.id, date)) {
+                  final w = parseWindow(selectedSlot);
                   FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('shifts').add({
-                    'restaurantId': widget.currentEmployee.restaurantId, 'employeeId': widget.currentEmployee.id, 'employeeName': widget.currentEmployee.name, 'timeWindow': selectedSlot, 'dayOfMonth': day, 'durationHours': 8
+                    'restaurantId': widget.currentEmployee.restaurantId, 'employeeId': widget.currentEmployee.id, 'employeeName': widget.currentEmployee.name, 'timeWindow': selectedSlot,
+                    'dayOfMonth': date.day, 'month': date.month, 'year': date.year,
+                    if (w != null) 'startMinutes': w.start * 60, if (w != null) 'endMinutes': w.end * 60,
+                    'durationHours': 8
                   });
                 }
               })

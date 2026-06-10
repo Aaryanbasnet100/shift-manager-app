@@ -36,7 +36,8 @@ final Map<String, Map<String, String>> dict = {
     'pending_requests': 'PENDING REQUESTS', 'team_size': 'TEAM SIZE', 'todays_coverage': "TODAY'S COVERAGE",
     'no_shifts_today': 'No shifts scheduled today.', 'next_shift': 'NEXT SHIFT', 'no_upcoming': 'No upcoming shifts.',
     'hours_this_week': 'HOURS THIS WEEK', 'my_pending': 'MY PENDING REQUESTS', 'starts_in': 'Starts in',
-    'on_shift_badge': 'ON SHIFT', 'days_short': 'd', 'hours_short': 'h', 'min_short': 'm'
+    'on_shift_badge': 'ON SHIFT', 'days_short': 'd', 'hours_short': 'h', 'min_short': 'm',
+    'start_time': 'START TIME', 'end_time': 'END TIME'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -68,7 +69,8 @@ final Map<String, Map<String, String>> dict = {
     'pending_requests': 'OFFENE ANFRAGEN', 'team_size': 'TEAMGRÖSSE', 'todays_coverage': 'HEUTIGE ABDECKUNG',
     'no_shifts_today': 'Heute keine Schichten geplant.', 'next_shift': 'NÄCHSTE SCHICHT', 'no_upcoming': 'Keine anstehenden Schichten.',
     'hours_this_week': 'STUNDEN DIESE WOCHE', 'my_pending': 'MEINE OFFENEN ANFRAGEN', 'starts_in': 'Beginnt in',
-    'on_shift_badge': 'IM DIENST', 'days_short': 'T', 'hours_short': 'Std', 'min_short': 'Min'
+    'on_shift_badge': 'IM DIENST', 'days_short': 'T', 'hours_short': 'Std', 'min_short': 'Min',
+    'start_time': 'BEGINN', 'end_time': 'ENDE'
   }
 };
 

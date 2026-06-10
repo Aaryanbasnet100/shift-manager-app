@@ -70,7 +70,7 @@ class _ManagerShellState extends State<ManagerShell> {
   // --- Tab 0: Dashboard (Feature 1) -------------------------------------
   Widget _buildDashboardTab() {
     final now = austriaNow();
-    final todayShifts = widget.shifts.where((s) => s.dayOfMonth == now.day).toList();
+    final todayShifts = widget.shifts.where((s) => occursOn(s, now)).toList();
     final onShiftNow = todayShifts.where((s) => isShiftActiveNow(s, now)).length;
     final pendingVacs = widget.vacations.where((v) => v.status == 'Pending').length;
 
@@ -136,10 +136,9 @@ class _ManagerShellState extends State<ManagerShell> {
 
   // --- Tab 1: My Team -------------------------------------------------
   Widget _buildTeamTab() {
-    final now = DateTime.now();
+    final now = austriaNow();
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
-    // Schema stores dayOfMonth only, so the week is matched within the current month.
-    final weekDayNums = List.generate(7, (i) => monday.add(Duration(days: i))).where((d) => d.month == now.month).map((d) => d.day).toSet();
+    final weekDates = List.generate(7, (i) => monday.add(Duration(days: i)));
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -147,7 +146,7 @@ class _ManagerShellState extends State<ManagerShell> {
         Text(t('my_team'), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
         const SizedBox(height: 24),
         ...widget.employees.map((emp) {
-          final hours = widget.shifts.where((s) => s.employeeId == emp.id && weekDayNums.contains(s.dayOfMonth)).fold<int>(0, (a, s) => a + s.durationHours);
+          final hours = widget.shifts.where((s) => s.employeeId == emp.id && weekDates.any((d) => occursOn(s, d))).fold<int>(0, (a, s) => a + s.durationHours);
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
@@ -173,7 +172,7 @@ class _ManagerShellState extends State<ManagerShell> {
 
   // --- Tab 2: Schedule (week view + shift CRUD) ------------------------
   Widget _buildScheduleTab() {
-    final now = DateTime.now();
+    final now = austriaNow();
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1)).add(Duration(days: _weekOffset * 7));
     final days = List.generate(7, (i) => monday.add(Duration(days: i)));
 
@@ -192,7 +191,7 @@ class _ManagerShellState extends State<ManagerShell> {
         ),
         const SizedBox(height: 8),
         ...days.map((d) {
-          final dayShifts = widget.shifts.where((s) => s.dayOfMonth == d.day).toList();
+          final dayShifts = widget.shifts.where((s) => occursOn(s, d)).toList();
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -204,7 +203,7 @@ class _ManagerShellState extends State<ManagerShell> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('${t('wd_${d.weekday}')} ${d.day}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.neonCyan, size: 20), onPressed: () => _openCreateShiftSheet(d.day)),
+                    IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.neonCyan, size: 20), onPressed: () => _openCreateShiftSheet(d)),
                   ],
                 ),
                 if (dayShifts.isEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t('no_shifts'), style: const TextStyle(color: Colors.white38, fontSize: 12))),
@@ -231,26 +230,60 @@ class _ManagerShellState extends State<ManagerShell> {
     );
   }
 
-  void _openCreateShiftSheet(int day) {
+  // Schedule v2: tappable time field driving showTimePicker, themed dark.
+  Widget _timePickerField(BuildContext ctx, String label, int minutes, ValueChanged<int> onPicked) {
+    return InkWell(
+      onTap: () async {
+        final picked = await showTimePicker(
+          context: ctx, initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
+          builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.dark(primary: AppColors.neonCyan, surface: AppColors.surface, onSurface: Colors.white)), child: child!),
+        );
+        if (picked != null) onPicked(picked.hour * 60 + picked.minute);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+            const SizedBox(height: 4),
+            Text(fmtMinutes(minutes), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openCreateShiftSheet(DateTime date) {
     if (widget.employees.isEmpty) return;
     String empId = widget.employees.first.id;
-    String slot = t('morning');
-    final durCtrl = TextEditingController(text: '8');
+    int startMin = 9 * 60; int endMin = 17 * 60;
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('${t('schedule_for')}$day', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+        Text('${t('schedule_for')}${date.day} ${t('month_${date.month}')}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(height: 24),
         DropdownButtonFormField<String>(value: empId, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: widget.employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(), onChanged: (val) { if (val != null) setModalState(() => empId = val); }),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(value: slot, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [t('morning'), t('afternoon'), t('night')].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) { if (val != null) setModalState(() => slot = val); }),
-        const SizedBox(height: 12),
-        buildNeonTextField(controller: durCtrl, hint: t('duration'), icon: Icons.timer),
+        Row(children: [
+          Expanded(child: _timePickerField(ctx, t('start_time'), startMin, (v) => setModalState(() => startMin = v))),
+          const SizedBox(width: 12),
+          Expanded(child: _timePickerField(ctx, t('end_time'), endMin, (v) => setModalState(() => endMin = v))),
+        ]),
         const SizedBox(height: 24),
         buildNeonButton(t('deploy_shift'), () async {
           final emp = widget.employees.firstWhere((e) => e.id == empId);
-          if (await checkShiftConflict(ctx, widget.shifts, empId, day)) {
-            _wsDoc.collection('shifts').add({'restaurantId': widget.workspaceId, 'employeeId': emp.id, 'employeeName': emp.name, 'timeWindow': slot, 'dayOfMonth': day, 'durationHours': int.tryParse(durCtrl.text) ?? 8});
+          if (await checkShiftConflict(ctx, widget.shifts, empId, date)) {
+            final durMin = (endMin - startMin + 1440) % 1440;
+            _wsDoc.collection('shifts').add({
+              'restaurantId': widget.workspaceId, 'employeeId': emp.id, 'employeeName': emp.name,
+              'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
+              'dayOfMonth': date.day, 'month': date.month, 'year': date.year,
+              'startMinutes': startMin, 'endMinutes': endMin,
+              'durationHours': (durMin / 60).round(),
+            });
             Navigator.pop(ctx);
           }
         }),
@@ -260,21 +293,26 @@ class _ManagerShellState extends State<ManagerShell> {
   }
 
   void _openEditShiftSheet(ShiftData shift) {
-    final slots = [t('morning'), t('afternoon'), t('night')];
-    // Stored value may be in the other language — fall back so the dropdown never crashes.
-    String slot = slots.contains(shift.timeWindow) ? shift.timeWindow : slots.first;
-    final durCtrl = TextEditingController(text: '${shift.durationHours}');
+    int startMin = effectiveStartMinutes(shift) % 1440;
+    int endMin = effectiveEndMinutes(shift) % 1440;
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('${t('edit_shift')}: ${shift.employeeName}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(height: 24),
-        DropdownButtonFormField<String>(value: slot, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: slots.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) { if (val != null) setModalState(() => slot = val); }),
-        const SizedBox(height: 12),
-        buildNeonTextField(controller: durCtrl, hint: t('duration'), icon: Icons.timer),
+        Row(children: [
+          Expanded(child: _timePickerField(ctx, t('start_time'), startMin, (v) => setModalState(() => startMin = v))),
+          const SizedBox(width: 12),
+          Expanded(child: _timePickerField(ctx, t('end_time'), endMin, (v) => setModalState(() => endMin = v))),
+        ]),
         const SizedBox(height: 24),
         buildNeonButton(t('save'), () {
-          _wsDoc.collection('shifts').doc(shift.id).update({'timeWindow': slot, 'durationHours': int.tryParse(durCtrl.text) ?? shift.durationHours});
+          final durMin = (endMin - startMin + 1440) % 1440;
+          _wsDoc.collection('shifts').doc(shift.id).update({
+            'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
+            'startMinutes': startMin, 'endMinutes': endMin,
+            'durationHours': (durMin / 60).round(),
+          });
           Navigator.pop(ctx);
         }),
         const SizedBox(height: 8),
