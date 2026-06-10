@@ -27,10 +27,12 @@ class ShiftData {
   // null month/year = the shift matches every month (original behavior);
   // null start/end minutes = times are derived from the timeWindow string.
   int? month; int? year; int? startMinutes; int? endMinutes;
-  ShiftData({required this.id, required this.restaurantId, required this.employeeId, required this.employeeName, required this.timeWindow, required this.dayOfMonth, this.durationHours = 8, this.month, this.year, this.startMinutes, this.endMinutes});
+  // Feature 5: unassigned shift posted to the open-shift board.
+  bool isOpenShift;
+  ShiftData({required this.id, required this.restaurantId, required this.employeeId, required this.employeeName, required this.timeWindow, required this.dayOfMonth, this.durationHours = 8, this.month, this.year, this.startMinutes, this.endMinutes, this.isOpenShift = false});
   factory ShiftData.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
-    return ShiftData(id: doc.id, restaurantId: data['restaurantId'] ?? '', employeeId: data['employeeId'] ?? '', employeeName: data['employeeName'] ?? '', timeWindow: data['timeWindow'] ?? '', dayOfMonth: data['dayOfMonth'] ?? 1, durationHours: data['durationHours'] ?? 8, month: data['month'], year: data['year'], startMinutes: data['startMinutes'], endMinutes: data['endMinutes']);
+    return ShiftData(id: doc.id, restaurantId: data['restaurantId'] ?? '', employeeId: data['employeeId'] ?? '', employeeName: data['employeeName'] ?? '', timeWindow: data['timeWindow'] ?? '', dayOfMonth: data['dayOfMonth'] ?? 1, durationHours: data['durationHours'] ?? 8, month: data['month'], year: data['year'], startMinutes: data['startMinutes'], endMinutes: data['endMinutes'], isOpenShift: data['isOpenShift'] ?? false);
   }
 }
 

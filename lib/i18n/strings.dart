@@ -43,7 +43,12 @@ final Map<String, Map<String, String>> dict = {
     'template_saved': 'Template saved.', 'template_applied': 'Template applied',
     'availability': 'WEEKLY AVAILABILITY', 'available': 'Available', 'preferred': 'Preferred', 'unavailable': 'Unavailable',
     'avail_warning_title': 'AVAILABILITY WARNING', 'avail_warning_unavailable': 'is marked unavailable on this day.',
-    'avail_warning_leave': 'is on approved leave on this date.', 'proceed': 'ASSIGN ANYWAY'
+    'avail_warning_leave': 'is on approved leave on this date.', 'proceed': 'ASSIGN ANYWAY',
+    'open_shift': 'OPEN SHIFT', 'open_shifts': 'OPEN SHIFTS', 'volunteer': 'VOLUNTEER', 'offer_drop': 'OFFER TO DROP',
+    'wants_drop': 'wants to drop a shift', 'volunteers_for': 'volunteers for an open shift',
+    'no_open_shifts': 'No open shifts right now.',
+    'noti_swap_offered': 'Swap requested by ', 'noti_drop_offered': 'Drop requested by ', 'noti_claim': 'Open shift claimed by ',
+    'noti_drop_approved': 'Shift released to open board: ', 'noti_claim_approved': 'Open shift assigned to '
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -82,7 +87,12 @@ final Map<String, Map<String, String>> dict = {
     'template_saved': 'Vorlage gespeichert.', 'template_applied': 'Vorlage angewendet',
     'availability': 'WÖCHENTLICHE VERFÜGBARKEIT', 'available': 'Verfügbar', 'preferred': 'Bevorzugt', 'unavailable': 'Nicht verfügbar',
     'avail_warning_title': 'VERFÜGBARKEITSWARNUNG', 'avail_warning_unavailable': 'ist an diesem Tag als nicht verfügbar markiert.',
-    'avail_warning_leave': 'hat an diesem Datum genehmigten Urlaub.', 'proceed': 'TROTZDEM ZUWEISEN'
+    'avail_warning_leave': 'hat an diesem Datum genehmigten Urlaub.', 'proceed': 'TROTZDEM ZUWEISEN',
+    'open_shift': 'OFFENE SCHICHT', 'open_shifts': 'OFFENE SCHICHTEN', 'volunteer': 'MELDEN', 'offer_drop': 'ABGABE ANBIETEN',
+    'wants_drop': 'möchte eine Schicht abgeben', 'volunteers_for': 'meldet sich für eine offene Schicht',
+    'no_open_shifts': 'Derzeit keine offenen Schichten.',
+    'noti_swap_offered': 'Tausch angefragt von ', 'noti_drop_offered': 'Abgabe angefragt von ', 'noti_claim': 'Offene Schicht beansprucht von ',
+    'noti_drop_approved': 'Schicht freigegeben: ', 'noti_claim_approved': 'Offene Schicht zugewiesen an '
   }
 };
 

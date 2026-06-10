@@ -167,8 +167,55 @@ class _EmployeeShellState extends State<EmployeeShell> {
             ),
           ],
         ),
+        const SizedBox(height: 32),
+        // Feature 5: open-shift marketplace — volunteer for unassigned shifts.
+        Text(t('open_shifts'), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        const SizedBox(height: 16),
+        Builder(builder: (context) {
+          final openShifts = widget.allShifts.where((s) =>
+            s.isOpenShift &&
+            s.dayOfMonth >= now.day &&
+            (s.month == null || s.month == now.month) &&
+            (s.year == null || s.year == now.year)).toList()
+            ..sort((a, b) => a.dayOfMonth.compareTo(b.dayOfMonth));
+          if (openShifts.isEmpty) return Text(t('no_open_shifts'), style: const TextStyle(color: Colors.white54));
+          return Column(
+            children: openShifts.map((s) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.4))),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${t('day')} ${s.dayOfMonth}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text(s.timeWindow, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  TextButton(onPressed: () => _volunteerForShift(s, now), child: Text(t('volunteer'), style: const TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.w900, letterSpacing: 1))),
+                ],
+              ),
+            )).toList(),
+          );
+        }),
       ],
     );
+  }
+
+  Future<void> _volunteerForShift(ShiftData s, DateTime now) async {
+    final date = DateTime(s.year ?? now.year, s.month ?? now.month, s.dayOfMonth);
+    if (!await checkShiftConflict(context, widget.allShifts, widget.currentEmployee.id, date)) return;
+    final ws = FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId);
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+    batch.set(ws.collection('swapRequests').doc(), {'type': 'claim', 'requesterId': widget.currentEmployee.id, 'requesterName': widget.currentEmployee.name, 'targetId': '', 'targetName': '', 'shiftId': s.id, 'status': 'pending'});
+    batch.set(ws.collection('notifications').doc(), {'msg': '${t('noti_claim')}${widget.currentEmployee.name}', 'read': false, 'time': DateTime.now().toIso8601String()});
+    await batch.commit();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: AppColors.surface, content: Text(t('pending'), style: const TextStyle(color: Colors.white))));
+    }
   }
 
   // Earliest shift (this month) that hasn't ended yet, by day + start time.
@@ -231,11 +278,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
         Text(t('my_shifts'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white54)),
         const SizedBox(height: 16),
         ...myShifts.map((shift) => InkWell(
-          onTap: () {
-            // Feature 5: Shift Swap Request System
-            String targetEmpId = widget.allEmployees.firstWhere((e) => e.id != widget.currentEmployee.id, orElse: () => widget.currentEmployee).id;
-            showModalBottomSheet(context: context, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(t('request_swap'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 24), DropdownButtonFormField<String>(value: targetEmpId, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: widget.allEmployees.where((e) => e.id != widget.currentEmployee.id).map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(), onChanged: (val) { if(val != null) setModalState(() => targetEmpId = val); }), const SizedBox(height: 24), buildNeonButton(t('request_swap'), () { final tEmp = widget.allEmployees.firstWhere((e) => e.id == targetEmpId); FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('swapRequests').add({'requesterId': widget.currentEmployee.id, 'requesterName': widget.currentEmployee.name, 'targetId': tEmp.id, 'targetName': tEmp.name, 'shiftId': shift.id, 'status': 'pending'}); Navigator.pop(ctx); })]))));
-          },
+          onTap: () => _openShiftActions(shift),
           child: Container(
             margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
             child: ListTile(
@@ -247,6 +290,45 @@ class _EmployeeShellState extends State<EmployeeShell> {
         )),
       ],
     );
+  }
+
+  // Feature 5: swap with a colleague or offer the shift for drop —
+  // both go through the manager's approval queue.
+  void _openShiftActions(ShiftData shift) {
+    final ws = FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId);
+    String targetEmpId = widget.allEmployees.firstWhere((e) => e.id != widget.currentEmployee.id, orElse: () => widget.currentEmployee).id;
+    showModalBottomSheet(context: context, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(t('request_swap'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 24),
+          DropdownButtonFormField<String>(value: targetEmpId, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: widget.allEmployees.where((e) => e.id != widget.currentEmployee.id).map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(), onChanged: (val) { if(val != null) setModalState(() => targetEmpId = val); }),
+          const SizedBox(height: 24),
+          buildNeonButton(t('request_swap'), () {
+            final tEmp = widget.allEmployees.firstWhere((e) => e.id == targetEmpId);
+            WriteBatch batch = FirebaseFirestore.instance.batch();
+            batch.set(ws.collection('swapRequests').doc(), {'type': 'swap', 'requesterId': widget.currentEmployee.id, 'requesterName': widget.currentEmployee.name, 'targetId': tEmp.id, 'targetName': tEmp.name, 'shiftId': shift.id, 'status': 'pending'});
+            batch.set(ws.collection('notifications').doc(), {'msg': '${t('noti_swap_offered')}${widget.currentEmployee.name}', 'read': false, 'time': DateTime.now().toIso8601String()});
+            batch.commit();
+            Navigator.pop(ctx);
+          }),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              WriteBatch batch = FirebaseFirestore.instance.batch();
+              batch.set(ws.collection('swapRequests').doc(), {'type': 'drop', 'requesterId': widget.currentEmployee.id, 'requesterName': widget.currentEmployee.name, 'targetId': '', 'targetName': '', 'shiftId': shift.id, 'status': 'pending'});
+              batch.set(ws.collection('notifications').doc(), {'msg': '${t('noti_drop_offered')}${widget.currentEmployee.name}', 'read': false, 'time': DateTime.now().toIso8601String()});
+              batch.commit();
+              Navigator.pop(ctx);
+            },
+            child: Text(t('offer_drop'), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    )));
   }
 
   Widget _buildCalendarView() {

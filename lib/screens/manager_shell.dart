@@ -72,7 +72,7 @@ class _ManagerShellState extends State<ManagerShell> {
   Widget _buildDashboardTab() {
     final now = austriaNow();
     final todayShifts = widget.shifts.where((s) => occursOn(s, now)).toList();
-    final onShiftNow = todayShifts.where((s) => isShiftActiveNow(s, now)).length;
+    final onShiftNow = todayShifts.where((s) => !s.isOpenShift && isShiftActiveNow(s, now)).length;
     final pendingVacs = widget.vacations.where((v) => v.status == 'Pending').length;
 
     return ListView(
@@ -115,7 +115,7 @@ class _ManagerShellState extends State<ManagerShell> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(s.employeeName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text(s.isOpenShift ? t('open_shift') : s.employeeName, style: TextStyle(color: s.isOpenShift ? AppColors.neonCyan : Colors.white, fontWeight: FontWeight.bold)),
                         Text(s.timeWindow, style: const TextStyle(color: Colors.white54, fontSize: 12)),
                       ],
                     ),
@@ -228,7 +228,7 @@ class _ManagerShellState extends State<ManagerShell> {
                     decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3))),
                     child: Row(
                       children: [
-                        Expanded(child: Text('${s.employeeName} • ${s.timeWindow}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12))),
+                        Expanded(child: Text('${s.isOpenShift ? t('open_shift') : s.employeeName} • ${s.timeWindow}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: s.isOpenShift ? AppColors.neonCyan : Colors.white, fontSize: 12))),
                         Text('${s.durationHours}h', style: const TextStyle(color: AppColors.neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -277,7 +277,11 @@ class _ManagerShellState extends State<ManagerShell> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('${t('schedule_for')}${date.day} ${t('month_${date.month}')}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(height: 24),
-        DropdownButtonFormField<String>(value: empId, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: widget.employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(), onChanged: (val) { if (val != null) setModalState(() => empId = val); }),
+        DropdownButtonFormField<String>(value: empId, dropdownColor: AppColors.surface, style: const TextStyle(color: Colors.white), decoration: InputDecoration(filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), items: [
+          // Feature 5: post the shift unassigned to the open-shift board.
+          DropdownMenuItem(value: '', child: Text(t('open_shift'), style: const TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.w900))),
+          ...widget.employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
+        ], onChanged: (val) { if (val != null) setModalState(() => empId = val); }),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(child: _timePickerField(ctx, t('start_time'), startMin, (v) => setModalState(() => startMin = v))),
@@ -286,20 +290,24 @@ class _ManagerShellState extends State<ManagerShell> {
         ]),
         const SizedBox(height: 24),
         buildNeonButton(t('deploy_shift'), () async {
-          final emp = widget.employees.firstWhere((e) => e.id == empId);
-          if (!await _availabilityOk(ctx, emp, date)) return;
-          if (!ctx.mounted) return;
-          if (await checkShiftConflict(ctx, widget.shifts, empId, date)) {
-            final durMin = (endMin - startMin + 1440) % 1440;
-            _wsDoc.collection('shifts').add({
-              'restaurantId': widget.workspaceId, 'employeeId': emp.id, 'employeeName': emp.name,
-              'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
-              'dayOfMonth': date.day, 'month': date.month, 'year': date.year,
-              'startMinutes': startMin, 'endMinutes': endMin,
-              'durationHours': (durMin / 60).round(),
-            });
-            Navigator.pop(ctx);
+          final isOpen = empId.isEmpty;
+          if (!isOpen) {
+            final emp = widget.employees.firstWhere((e) => e.id == empId);
+            if (!await _availabilityOk(ctx, emp, date)) return;
+            if (!ctx.mounted) return;
+            if (!await checkShiftConflict(ctx, widget.shifts, empId, date)) return;
           }
+          final emp = isOpen ? null : widget.employees.firstWhere((e) => e.id == empId);
+          final durMin = (endMin - startMin + 1440) % 1440;
+          _wsDoc.collection('shifts').add({
+            'restaurantId': widget.workspaceId, 'employeeId': emp?.id ?? '', 'employeeName': emp?.name ?? '',
+            'timeWindow': '${fmtMinutes(startMin)} - ${fmtMinutes(endMin)}',
+            'dayOfMonth': date.day, 'month': date.month, 'year': date.year,
+            'startMinutes': startMin, 'endMinutes': endMin,
+            'durationHours': (durMin / 60).round(),
+            'isOpenShift': isOpen,
+          });
+          if (ctx.mounted) Navigator.pop(ctx);
         }),
         const SizedBox(height: 40),
       ]),
@@ -506,24 +514,46 @@ class _ManagerShellState extends State<ManagerShell> {
           builder: (context, swapSnap) {
             if (!swapSnap.hasData || swapSnap.data!.docs.isEmpty) return Text(t('no_requests'), style: const TextStyle(color: Colors.white54));
             return Column(
-              children: swapSnap.data!.docs.map((doc) => Container(
-                margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orange.withValues(alpha: 0.5))),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${doc['requesterName']} ${t('wants_assign')} ${doc['targetName']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: buildNeonButton(t('approve'), () async {
-                      WriteBatch batch = FirebaseFirestore.instance.batch();
-                      batch.update(doc.reference, {'status': 'approved'});
-                      batch.update(_wsDoc.collection('shifts').doc(doc['shiftId']), {'employeeId': doc['targetId'], 'employeeName': doc['targetName']});
-                      batch.set(_wsDoc.collection('notifications').doc(), {'msg': '${t('swap_approved_for')}${doc['requesterName']}', 'read': false, 'time': DateTime.now().toIso8601String()});
-                      await batch.commit();
-                    })),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextButton(onPressed: () => doc.reference.update({'status': 'rejected'}), child: Text(t('reject'), style: const TextStyle(color: Colors.redAccent))))
+              children: swapSnap.data!.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                // Feature 5: 'swap' (legacy default) | 'drop' | 'claim'.
+                final type = data['type'] ?? 'swap';
+                final requester = data['requesterName'] ?? '';
+                final headline = switch (type) {
+                  'drop' => '$requester ${t('wants_drop')}',
+                  'claim' => '$requester ${t('volunteers_for')}',
+                  _ => '$requester ${t('wants_assign')} ${data['targetName'] ?? ''}',
+                };
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orange.withValues(alpha: 0.5))),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(headline, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(child: buildNeonButton(t('approve'), () async {
+                        WriteBatch batch = FirebaseFirestore.instance.batch();
+                        batch.update(doc.reference, {'status': 'approved'});
+                        final shiftRef = _wsDoc.collection('shifts').doc(data['shiftId']);
+                        String msg;
+                        if (type == 'drop') {
+                          batch.update(shiftRef, {'employeeId': '', 'employeeName': '', 'isOpenShift': true});
+                          msg = '${t('noti_drop_approved')}$requester';
+                        } else if (type == 'claim') {
+                          batch.update(shiftRef, {'employeeId': data['requesterId'], 'employeeName': requester, 'isOpenShift': false});
+                          msg = '${t('noti_claim_approved')}$requester';
+                        } else {
+                          batch.update(shiftRef, {'employeeId': data['targetId'], 'employeeName': data['targetName']});
+                          msg = '${t('swap_approved_for')}$requester';
+                        }
+                        batch.set(_wsDoc.collection('notifications').doc(), {'msg': msg, 'read': false, 'time': DateTime.now().toIso8601String()});
+                        await batch.commit();
+                      })),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextButton(onPressed: () => doc.reference.update({'status': 'rejected'}), child: Text(t('reject'), style: const TextStyle(color: Colors.redAccent))))
+                    ])
                   ])
-                ])
-              )).toList(),
+                );
+              }).toList(),
             );
           }
         ),
