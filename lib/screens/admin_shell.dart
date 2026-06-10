@@ -7,6 +7,7 @@ import '../services/password.dart';
 import '../services/shift_conflict_engine.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
+import '../widgets/adaptive_scaffold.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
 import 'reports_screen.dart';
@@ -54,7 +55,7 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) {
     final screens = [_buildStaffTab(), _buildRosterTab(), _buildSettingsTab()];
-    return Scaffold(
+    return AdaptiveNavScaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background, elevation: 0,
         title: Text('${t('manager_prefix')}: ${widget.restaurantName}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 14, fontWeight: FontWeight.w900)),
@@ -68,15 +69,13 @@ class _AdminShellState extends State<AdminShell> {
       ),
       endDrawer: buildNotificationDrawer(context, widget.workspaceId),
       body: screens[_tabIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tabIndex, onTap: (i) => setState(() => _tabIndex = i),
-        backgroundColor: AppColors.background, selectedItemColor: AppColors.neonCyan, unselectedItemColor: Colors.white38,
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.groups_2), label: t('directory')),
-          BottomNavigationBarItem(icon: const Icon(Icons.calendar_view_week), label: t('roster')),
-          BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), label: t('settings')),
-        ],
-      ),
+      currentIndex: _tabIndex,
+      onTap: (i) => setState(() => _tabIndex = i),
+      items: [
+        AdaptiveNavItem(Icons.groups_2, t('directory')),
+        AdaptiveNavItem(Icons.calendar_view_week, t('roster')),
+        AdaptiveNavItem(Icons.settings_outlined, t('settings')),
+      ],
     );
   }
 

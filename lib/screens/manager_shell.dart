@@ -8,6 +8,7 @@ import '../services/availability.dart';
 import '../services/shift_conflict_engine.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
+import '../widgets/adaptive_scaffold.dart';
 import '../widgets/neon_stat_card.dart';
 import '../widgets/neon_widgets.dart';
 import '../widgets/notification_drawer.dart';
@@ -63,7 +64,7 @@ class _ManagerShellState extends State<ManagerShell> {
   @override
   Widget build(BuildContext context) {
     final screens = [_buildDashboardTab(), _buildTeamTab(), _buildScheduleTab(), _buildRequestsTab(), _buildAnnounceTab()];
-    return Scaffold(
+    return AdaptiveNavScaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background, elevation: 0,
         title: Text('${t('manager_prefix')}: ${widget.restaurantName}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 14, fontWeight: FontWeight.w900)),
@@ -77,18 +78,15 @@ class _ManagerShellState extends State<ManagerShell> {
       ),
       endDrawer: buildNotificationDrawer(context, widget.workspaceId, employeeId: widget.currentManager.id),
       body: screens[_tabIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tabIndex, onTap: (i) => setState(() => _tabIndex = i),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.background, selectedItemColor: AppColors.neonCyan, unselectedItemColor: Colors.white38,
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.space_dashboard), label: t('dashboard')),
-          BottomNavigationBarItem(icon: const Icon(Icons.groups_2), label: t('my_team')),
-          BottomNavigationBarItem(icon: const Icon(Icons.calendar_view_week), label: t('schedule')),
-          BottomNavigationBarItem(icon: const Icon(Icons.how_to_reg), label: t('requests')),
-          BottomNavigationBarItem(icon: const Icon(Icons.campaign), label: t('announce')),
-        ],
-      ),
+      currentIndex: _tabIndex,
+      onTap: (i) => setState(() => _tabIndex = i),
+      items: [
+        AdaptiveNavItem(Icons.space_dashboard, t('dashboard')),
+        AdaptiveNavItem(Icons.groups_2, t('my_team')),
+        AdaptiveNavItem(Icons.calendar_view_week, t('schedule')),
+        AdaptiveNavItem(Icons.how_to_reg, t('requests')),
+        AdaptiveNavItem(Icons.campaign, t('announce')),
+      ],
     );
   }
 

@@ -9,6 +9,7 @@ import '../services/password.dart';
 import '../services/shift_conflict_engine.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
+import '../widgets/adaptive_scaffold.dart';
 import '../widgets/neon_calendar.dart';
 import '../widgets/neon_stat_card.dart';
 import '../widgets/neon_widgets.dart';
@@ -59,7 +60,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
   @override
   Widget build(BuildContext context) {
     final screens = [_buildDashboardView(), _buildGraphView(), _buildCalendarView(), _buildVacationView()];
-    return Scaffold(
+    return AdaptiveNavScaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background, elevation: 0,
         title: Text(widget.restaurantName.toUpperCase(), style: const TextStyle(color: AppColors.neonPurple, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5)),
@@ -74,17 +75,14 @@ class _EmployeeShellState extends State<EmployeeShell> {
       ),
       endDrawer: buildNotificationDrawer(context, widget.currentEmployee.restaurantId, employeeId: widget.currentEmployee.id),
       body: SafeArea(child: screens[_tabIndex]),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tabIndex, onTap: (i) => setState(() => _tabIndex = i),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.background, selectedItemColor: AppColors.neonCyan, unselectedItemColor: Colors.white38,
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.space_dashboard), label: t('dashboard')),
-          BottomNavigationBarItem(icon: const Icon(Icons.bar_chart), label: t('shift_graph')),
-          BottomNavigationBarItem(icon: const Icon(Icons.calendar_month), label: t('calendar')),
-          BottomNavigationBarItem(icon: const Icon(Icons.beach_access), label: t('vacation')),
-        ],
-      ),
+      currentIndex: _tabIndex,
+      onTap: (i) => setState(() => _tabIndex = i),
+      items: [
+        AdaptiveNavItem(Icons.space_dashboard, t('dashboard')),
+        AdaptiveNavItem(Icons.bar_chart, t('shift_graph')),
+        AdaptiveNavItem(Icons.calendar_month, t('calendar')),
+        AdaptiveNavItem(Icons.beach_access, t('vacation')),
+      ],
     );
   }
 
