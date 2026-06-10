@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
 import '../services/austria_time.dart';
+import '../services/availability.dart';
 import '../services/shift_conflict_engine.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
@@ -322,7 +323,10 @@ class _EmployeeShellState extends State<EmployeeShell> {
           if (picked != null) {
             String dates = "${picked.start.day}/${picked.start.month} - ${picked.end.day}/${picked.end.month}";
             FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('vacations').add({
-              'restaurantId': widget.currentEmployee.restaurantId, 'employeeName': widget.currentEmployee.name, 'dates': dates, 'status': 'Pending'
+              'restaurantId': widget.currentEmployee.restaurantId, 'employeeName': widget.currentEmployee.name, 'dates': dates, 'status': 'Pending',
+              // Feature 4: ISO dates + id so the scheduler can detect leave overlap.
+              'employeeId': widget.currentEmployee.id,
+              'startDate': picked.start.toIso8601String(), 'endDate': picked.end.toIso8601String(),
             });
           }
         }),
@@ -331,7 +335,63 @@ class _EmployeeShellState extends State<EmployeeShell> {
           margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
           child: ListTile(title: Text(vac.dates, style: const TextStyle(color: Colors.white)), trailing: Text(t(vac.status.toLowerCase()), style: TextStyle(color: vac.status == 'Pending' ? Colors.orange : (vac.status == 'Denied' ? Colors.redAccent : Colors.green), fontWeight: FontWeight.bold))),
         )),
+        const SizedBox(height: 32),
+        // Feature 4: recurring weekly availability editor.
+        Text(t('availability'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white54)),
+        const SizedBox(height: 16),
+        StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('availability').doc(widget.currentEmployee.id).snapshots(),
+          builder: (context, snap) {
+            final data = snap.hasData && snap.data!.exists ? snap.data!.data() as Map<String, dynamic> : null;
+            return Column(
+              children: List.generate(7, (i) {
+                final wd = i + 1;
+                final status = availabilityStatus(data, wd);
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 40, child: Text(t('wd_$wd'), style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w900))),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6, alignment: WrapAlignment.end,
+                          children: [
+                            _availChip(t('available'), status == 'available', AppColors.neonCyan, () => _setAvailability(wd, 'available')),
+                            _availChip(t('preferred'), status == 'preferred', AppColors.neonPurple, () => _setAvailability(wd, 'preferred')),
+                            _availChip(t('unavailable'), status == 'unavailable', Colors.redAccent, () => _setAvailability(wd, 'unavailable')),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            );
+          },
+        ),
       ],
+    );
+  }
+
+  void _setAvailability(int weekday, String status) {
+    FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('availability').doc(widget.currentEmployee.id).set({'wd$weekday': status}, SetOptions(merge: true));
+  }
+
+  Widget _availChip(String label, bool selected, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? color : Colors.white12),
+        ),
+        child: Text(label, style: TextStyle(color: selected ? Colors.white : Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+      ),
     );
   }
 }

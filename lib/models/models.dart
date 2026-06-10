@@ -48,9 +48,12 @@ class ShiftTemplateData {
 
 class VacationData {
   String id; String restaurantId; String employeeName; String dates; String status;
-  VacationData({required this.id, required this.restaurantId, required this.employeeName, required this.dates, this.status = 'Pending'});
+  // Optional since Feature 4: ISO dates + employee id enable real leave
+  // checks. Legacy docs only carry the display string in `dates`.
+  String? employeeId; String? startDate; String? endDate;
+  VacationData({required this.id, required this.restaurantId, required this.employeeName, required this.dates, this.status = 'Pending', this.employeeId, this.startDate, this.endDate});
   factory VacationData.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
-    return VacationData(id: doc.id, restaurantId: data['restaurantId'] ?? '', employeeName: data['employeeName'] ?? '', dates: data['dates'] ?? '', status: data['status'] ?? 'Pending');
+    return VacationData(id: doc.id, restaurantId: data['restaurantId'] ?? '', employeeName: data['employeeName'] ?? '', dates: data['dates'] ?? '', status: data['status'] ?? 'Pending', employeeId: data['employeeId'], startDate: data['startDate'], endDate: data['endDate']);
   }
 }

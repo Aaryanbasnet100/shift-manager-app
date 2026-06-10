@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../i18n/strings.dart';
 import '../models/models.dart';
 import '../services/austria_time.dart';
+import '../services/availability.dart';
 import '../services/shift_conflict_engine.dart';
 import '../services/shift_time.dart';
 import '../theme/app_colors.dart';
@@ -286,6 +287,8 @@ class _ManagerShellState extends State<ManagerShell> {
         const SizedBox(height: 24),
         buildNeonButton(t('deploy_shift'), () async {
           final emp = widget.employees.firstWhere((e) => e.id == empId);
+          if (!await _availabilityOk(ctx, emp, date)) return;
+          if (!ctx.mounted) return;
           if (await checkShiftConflict(ctx, widget.shifts, empId, date)) {
             final durMin = (endMin - startMin + 1440) % 1440;
             _wsDoc.collection('shifts').add({
@@ -331,6 +334,37 @@ class _ManagerShellState extends State<ManagerShell> {
         const SizedBox(height: 32),
       ]),
     )));
+  }
+
+  // Feature 4: non-blocking scheduler warning — true means go ahead.
+  // Flags assignments on a day the employee marked unavailable, or inside
+  // an approved leave range (only vacations with ISO dates can be checked).
+  Future<bool> _availabilityOk(BuildContext ctx, EmployeeData emp, DateTime date) async {
+    String? issue;
+    final availDoc = await _wsDoc.collection('availability').doc(emp.id).get();
+    if (availabilityStatus(availDoc.data(), date.weekday) == 'unavailable') issue = t('avail_warning_unavailable');
+    if (issue == null) {
+      for (final v in widget.vacations) {
+        if (v.status != 'Approved') continue;
+        if (v.employeeId != emp.id && v.employeeName != emp.name) continue;
+        final s = DateTime.tryParse(v.startDate ?? ''); final e = DateTime.tryParse(v.endDate ?? '');
+        if (s == null || e == null) continue;
+        if (!date.isBefore(DateTime(s.year, s.month, s.day)) && !date.isAfter(DateTime(e.year, e.month, e.day))) { issue = t('avail_warning_leave'); break; }
+      }
+    }
+    if (issue == null) return true;
+    if (!ctx.mounted) return false;
+    final proceed = await showDialog<bool>(context: ctx, builder: (dCtx) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.orange)),
+      title: Text(t('avail_warning_title'), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w900)),
+      content: Text('${emp.name} $issue', style: const TextStyle(color: Colors.white70)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(t('cancel'), style: const TextStyle(color: Colors.white54))),
+        TextButton(onPressed: () => Navigator.pop(dCtx, true), child: Text(t('proceed'), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))),
+      ],
+    ));
+    return proceed ?? false;
   }
 
   // --- Feature 3: Shift Templates & Auto-Fill ---------------------------
@@ -408,6 +442,9 @@ class _ManagerShellState extends State<ManagerShell> {
   Future<void> _applyTemplate(ShiftTemplateData tpl) async {
     final week = _visibleWeek;
     final mRef = week.first;
+    // Feature 4: respect availability — skip 'unavailable', prefer 'preferred'.
+    final availSnap = await _wsDoc.collection('availability').get();
+    final avail = {for (final d in availSnap.docs) d.id: d.data()};
     final weekHours = {for (final e in widget.employees) e.id: widget.shifts.where((s) => s.employeeId == e.id && week.any((d) => occursOn(s, d))).fold<int>(0, (a, s) => a + s.durationHours)};
     final monthHours = {for (final e in widget.employees) e.id: widget.shifts.where((s) => s.employeeId == e.id && (s.month == null || s.month == mRef.month) && (s.year == null || s.year == mRef.year)).fold<int>(0, (a, s) => a + s.durationHours)};
     final assigned = <String>{};
@@ -421,13 +458,19 @@ class _ManagerShellState extends State<ManagerShell> {
       final durH = (((endMin - startMin + 1440) % 1440) / 60).round();
 
       final candidates = widget.employees.where((e) =>
+        availabilityStatus(avail[e.id], date.weekday) != 'unavailable' &&
         !assigned.contains('${e.id}-${date.day}') &&
         !widget.shifts.any((s) => s.employeeId == e.id && occursOn(s, date))).toList();
       if (candidates.isEmpty) continue;
 
       final safe = candidates.where((e) => (monthHours[e.id] ?? 0) + durH <= 160).toList();
       final pool = safe.isNotEmpty ? safe : candidates;
-      pool.sort((a, b) => (weekHours[a.id] ?? 0).compareTo(weekHours[b.id] ?? 0));
+      pool.sort((a, b) {
+        final pa = availabilityStatus(avail[a.id], date.weekday) == 'preferred' ? 0 : 1;
+        final pb = availabilityStatus(avail[b.id], date.weekday) == 'preferred' ? 0 : 1;
+        if (pa != pb) return pa - pb;
+        return (weekHours[a.id] ?? 0).compareTo(weekHours[b.id] ?? 0);
+      });
       final pick = pool.first;
 
       batch.set(_wsDoc.collection('shifts').doc(), {

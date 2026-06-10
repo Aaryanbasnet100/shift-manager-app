@@ -40,7 +40,10 @@ final Map<String, Map<String, String>> dict = {
     'start_time': 'START TIME', 'end_time': 'END TIME',
     'templates': 'TEMPLATES', 'template_name': 'Template name', 'save_week_template': 'SAVE THIS WEEK AS TEMPLATE',
     'apply': 'APPLY', 'no_templates': 'No templates saved yet.', 'slots': 'slots',
-    'template_saved': 'Template saved.', 'template_applied': 'Template applied'
+    'template_saved': 'Template saved.', 'template_applied': 'Template applied',
+    'availability': 'WEEKLY AVAILABILITY', 'available': 'Available', 'preferred': 'Preferred', 'unavailable': 'Unavailable',
+    'avail_warning_title': 'AVAILABILITY WARNING', 'avail_warning_unavailable': 'is marked unavailable on this day.',
+    'avail_warning_leave': 'is on approved leave on this date.', 'proceed': 'ASSIGN ANYWAY'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -76,7 +79,10 @@ final Map<String, Map<String, String>> dict = {
     'start_time': 'BEGINN', 'end_time': 'ENDE',
     'templates': 'VORLAGEN', 'template_name': 'Vorlagenname', 'save_week_template': 'WOCHE ALS VORLAGE SPEICHERN',
     'apply': 'ANWENDEN', 'no_templates': 'Noch keine Vorlagen gespeichert.', 'slots': 'Slots',
-    'template_saved': 'Vorlage gespeichert.', 'template_applied': 'Vorlage angewendet'
+    'template_saved': 'Vorlage gespeichert.', 'template_applied': 'Vorlage angewendet',
+    'availability': 'WÖCHENTLICHE VERFÜGBARKEIT', 'available': 'Verfügbar', 'preferred': 'Bevorzugt', 'unavailable': 'Nicht verfügbar',
+    'avail_warning_title': 'VERFÜGBARKEITSWARNUNG', 'avail_warning_unavailable': 'ist an diesem Tag als nicht verfügbar markiert.',
+    'avail_warning_leave': 'hat an diesem Datum genehmigten Urlaub.', 'proceed': 'TROTZDEM ZUWEISEN'
   }
 };
 
