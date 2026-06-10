@@ -48,7 +48,10 @@ final Map<String, Map<String, String>> dict = {
     'wants_drop': 'wants to drop a shift', 'volunteers_for': 'volunteers for an open shift',
     'no_open_shifts': 'No open shifts right now.',
     'noti_swap_offered': 'Swap requested by ', 'noti_drop_offered': 'Drop requested by ', 'noti_claim': 'Open shift claimed by ',
-    'noti_drop_approved': 'Shift released to open board: ', 'noti_claim_approved': 'Open shift assigned to '
+    'noti_drop_approved': 'Shift released to open board: ', 'noti_claim_approved': 'Open shift assigned to ',
+    'clock_in': 'CLOCK IN', 'clock_out': 'CLOCK OUT', 'attendance': 'ATTENDANCE',
+    'late': 'LATE', 'early_leave': 'LEFT EARLY', 'active_now': 'ACTIVE',
+    'actual': 'Actual', 'scheduled_lbl': 'Scheduled', 'no_entries': 'No attendance entries.'
   },
   'de': {
     'gateway': 'Enterprise Cloud-Gateway', 'workspace': 'Arbeitsbereich-ID', 'connect': 'MIT CLOUD-KNOTEN VERBINDEN',
@@ -92,7 +95,10 @@ final Map<String, Map<String, String>> dict = {
     'wants_drop': 'möchte eine Schicht abgeben', 'volunteers_for': 'meldet sich für eine offene Schicht',
     'no_open_shifts': 'Derzeit keine offenen Schichten.',
     'noti_swap_offered': 'Tausch angefragt von ', 'noti_drop_offered': 'Abgabe angefragt von ', 'noti_claim': 'Offene Schicht beansprucht von ',
-    'noti_drop_approved': 'Schicht freigegeben: ', 'noti_claim_approved': 'Offene Schicht zugewiesen an '
+    'noti_drop_approved': 'Schicht freigegeben: ', 'noti_claim_approved': 'Offene Schicht zugewiesen an ',
+    'clock_in': 'EINSTEMPELN', 'clock_out': 'AUSSTEMPELN', 'attendance': 'ANWESENHEIT',
+    'late': 'VERSPÄTET', 'early_leave': 'FRÜHER GEGANGEN', 'active_now': 'AKTIV',
+    'actual': 'Ist', 'scheduled_lbl': 'Soll', 'no_entries': 'Keine Anwesenheitseinträge.'
   }
 };
 

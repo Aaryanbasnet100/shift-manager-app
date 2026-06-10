@@ -115,42 +115,61 @@ class _EmployeeShellState extends State<EmployeeShell> {
       padding: const EdgeInsets.all(24),
       children: [
         _buildTopHeader(),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: nextActive ? AppColors.neonCyan : AppColors.neonCyan.withValues(alpha: 0.3))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Feature 6: the open time entry stream drives the clock in/out button.
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('timeEntries').where('employeeId', isEqualTo: widget.currentEmployee.id).where('clockOut', isNull: true).limit(1).snapshots(),
+          builder: (context, teSnap) {
+            final openEntry = (teSnap.hasData && teSnap.data!.docs.isNotEmpty) ? teSnap.data!.docs.first : null;
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: nextActive ? AppColors.neonCyan : AppColors.neonCyan.withValues(alpha: 0.3))),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t('next_shift'), style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                  if (nextActive)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(gradient: AppColors.neonGradient, borderRadius: BorderRadius.circular(6)),
-                      child: Text(t('on_shift_badge'), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(t('next_shift'), style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                      if (nextActive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(gradient: AppColors.neonGradient, borderRadius: BorderRadius.circular(6)),
+                          child: Text(t('on_shift_badge'), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (next == null)
+                    Text(t('no_upcoming'), style: const TextStyle(color: Colors.white54))
+                  else ...[
+                    Text(next.timeWindow, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                    Text('${t('day')} ${next.dayOfMonth}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    if (!nextActive) ...[
+                      const SizedBox(height: 12),
+                      Builder(builder: (context) {
+                        final startMin = effectiveStartMinutes(next);
+                        final diff = DateTime(now.year, now.month, next.dayOfMonth, startMin ~/ 60, startMin % 60).difference(now);
+                        final d = diff.inDays; final h = diff.inHours % 24; final m = diff.inMinutes % 60;
+                        return Text('${t('starts_in')} $d${t('days_short')} $h${t('hours_short')} $m${t('min_short')}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 20, fontWeight: FontWeight.w900));
+                      }),
+                    ],
+                  ],
+                  if (openEntry != null) ...[
+                    const SizedBox(height: 16),
+                    Builder(builder: (context) {
+                      final ci = DateTime.tryParse((openEntry.data() as Map<String, dynamic>)['clockIn'] ?? '');
+                      return Text(ci == null ? '' : '${t('clock_in')}: ${fmtMinutes(ci.hour * 60 + ci.minute)}', style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold));
+                    }),
+                    const SizedBox(height: 8),
+                    buildNeonButton(t('clock_out'), () => openEntry.reference.update({'clockOut': austriaNow().toIso8601String()})),
+                  ] else if (next != null && nextActive) ...[
+                    const SizedBox(height: 16),
+                    buildNeonButton(t('clock_in'), () => _clockIn(next)),
+                  ],
                 ],
               ),
-              const SizedBox(height: 12),
-              if (next == null)
-                Text(t('no_upcoming'), style: const TextStyle(color: Colors.white54))
-              else ...[
-                Text(next.timeWindow, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-                Text('${t('day')} ${next.dayOfMonth}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                if (!nextActive) ...[
-                  const SizedBox(height: 12),
-                  Builder(builder: (context) {
-                    final startMin = effectiveStartMinutes(next);
-                    final diff = DateTime(now.year, now.month, next.dayOfMonth, startMin ~/ 60, startMin % 60).difference(now);
-                    final d = diff.inDays; final h = diff.inHours % 24; final m = diff.inMinutes % 60;
-                    return Text('${t('starts_in')} $d${t('days_short')} $h${t('hours_short')} $m${t('min_short')}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 20, fontWeight: FontWeight.w900));
-                  }),
-                ],
-              ],
-            ],
-          ),
+            );
+          },
         ),
         const SizedBox(height: 16),
         GridView.count(
@@ -203,6 +222,18 @@ class _EmployeeShellState extends State<EmployeeShell> {
         }),
       ],
     );
+  }
+
+  // Feature 6: time clock — snapshot the scheduled window so the attendance
+  // log can flag late starts and early leaves even if the shift changes later.
+  void _clockIn(ShiftData s) {
+    final now = austriaNow();
+    FirebaseFirestore.instance.collection('restaurants').doc(widget.currentEmployee.restaurantId).collection('timeEntries').add({
+      'employeeId': widget.currentEmployee.id, 'employeeName': widget.currentEmployee.name, 'shiftId': s.id,
+      'clockIn': now.toIso8601String(), 'clockOut': null,
+      'dayOfMonth': now.day, 'month': now.month, 'year': now.year,
+      'scheduledStartMinutes': effectiveStartMinutes(s), 'scheduledEndMinutes': effectiveEndMinutes(s),
+    });
   }
 
   Future<void> _volunteerForShift(ShiftData s, DateTime now) async {

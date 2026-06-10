@@ -153,6 +153,8 @@ class _ManagerShellState extends State<ManagerShell> {
             decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              // Feature 6: tap for the attendance log.
+              onTap: () => _openAttendanceSheet(emp),
               leading: CircleAvatar(backgroundColor: AppColors.neonPurple.withValues(alpha: 0.3), child: Text(emp.name.isNotEmpty ? emp.name[0].toUpperCase() : '?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
               title: Text(emp.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               subtitle: Text(emp.role, style: const TextStyle(color: Colors.white54)),
@@ -169,6 +171,103 @@ class _ManagerShellState extends State<ManagerShell> {
         }),
       ],
     );
+  }
+
+  // --- Feature 6: Attendance log ----------------------------------------
+  void _openAttendanceSheet(EmployeeData emp) {
+    final now = austriaNow();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${t('attendance')}: ${emp.name}', style: const TextStyle(color: AppColors.neonCyan, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _wsDoc.collection('timeEntries').where('employeeId', isEqualTo: emp.id).snapshots(),
+              builder: (context, snap) {
+                if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.neonCyan));
+                final entries = snap.data!.docs.map((d) => d.data() as Map<String, dynamic>).toList()
+                  ..sort((a, b) => (b['clockIn'] ?? '').toString().compareTo((a['clockIn'] ?? '').toString()));
+                if (entries.isEmpty) return Padding(padding: const EdgeInsets.only(bottom: 24), child: Text(t('no_entries'), style: const TextStyle(color: Colors.white54)));
+
+                // Month summary: actual (closed entries) vs scheduled minutes.
+                int actualMin = 0, schedMin = 0;
+                for (final e in entries) {
+                  if (e['month'] != now.month || e['year'] != now.year) continue;
+                  final ci = DateTime.tryParse(e['clockIn'] ?? ''); final co = e['clockOut'] != null ? DateTime.tryParse(e['clockOut']) : null;
+                  if (ci != null && co != null) actualMin += co.difference(ci).inMinutes;
+                  final ss = e['scheduledStartMinutes'] as int?; final se = e['scheduledEndMinutes'] as int?;
+                  if (ss != null && se != null) schedMin += (se - ss + 1440) % 1440;
+                }
+                String hm(int m) => '${m ~/ 60}${t('hours_short')} ${m % 60}${t('min_short')}';
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${t('actual')}: ${hm(actualMin)}  •  ${t('scheduled_lbl')}: ${hm(schedMin)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: entries.map((e) {
+                          final ci = DateTime.tryParse(e['clockIn'] ?? '');
+                          final co = DateTime.tryParse(e['clockOut'] ?? '');
+                          if (ci == null) return const SizedBox.shrink();
+                          final ciMin = ci.hour * 60 + ci.minute;
+                          final coMin = co != null ? co.hour * 60 + co.minute : null;
+                          final ss = e['scheduledStartMinutes'] as int?;
+                          final se = e['scheduledEndMinutes'] as int?;
+                          final isLate = ss != null && ciMin > ss + 5;
+                          final leftEarly = co != null && se != null && se > (ss ?? 0) && coMin! < se - 5;
+                          final actual = co != null ? co.difference(ci).inMinutes : null;
+
+                          Widget badge(String label, Color color) => Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: color)),
+                            child: Text(label, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w900)),
+                          );
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: co == null ? AppColors.neonCyan : Colors.white.withValues(alpha: 0.05))),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(children: [
+                                        Text('${ci.day}.${ci.month}.', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                        if (co == null) badge(t('active_now'), AppColors.neonCyan),
+                                        if (isLate) badge(t('late'), Colors.orange),
+                                        if (leftEarly) badge(t('early_leave'), Colors.redAccent),
+                                      ]),
+                                      Text('${fmtMinutes(ciMin)} - ${coMin != null ? fmtMinutes(coMin) : '…'}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                                    ],
+                                  ),
+                                ),
+                                if (actual != null) Text(hm(actual), style: const TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.w900, fontSize: 12)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    ));
   }
 
   // --- Tab 2: Schedule (week view + shift CRUD) ------------------------
