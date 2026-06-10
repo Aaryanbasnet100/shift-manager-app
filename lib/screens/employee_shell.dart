@@ -172,7 +172,9 @@ class _EmployeeShellState extends State<EmployeeShell> {
             int day = index + 1;
             bool hasShift = myShifts.any((s) => s.dayOfMonth == day);
             return InkWell(
-              onTap: () {
+              // Issue 2: self-scheduling is a privileged action — plain
+              // employees get a read-only calendar (onTap disabled).
+              onTap: !widget.currentEmployee.canManageShifts ? null : () {
                 String selectedSlot = t('morning');
                 showModalBottomSheet(
                   context: context, backgroundColor: AppColors.surface, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),

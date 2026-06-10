@@ -10,10 +10,14 @@ class RestaurantTenant {
 
 class EmployeeData {
   String id; String restaurantId; String name; String role; String username; String password;
-  EmployeeData({required this.id, required this.restaurantId, required this.name, required this.role, required this.username, required this.password});
+  // App-level permission role: 'admin' | 'manager' | 'employee'.
+  // Optional Firestore field — existing docs without it default to 'employee'.
+  String appRole;
+  EmployeeData({required this.id, required this.restaurantId, required this.name, required this.role, required this.username, required this.password, this.appRole = 'employee'});
+  bool get canManageShifts => appRole == 'admin' || appRole == 'manager';
   factory EmployeeData.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
-    return EmployeeData(id: doc.id, restaurantId: data['restaurantId'] ?? '', name: data['name'] ?? '', role: data['role'] ?? '', username: data['username'] ?? '', password: data['password'] ?? '');
+    return EmployeeData(id: doc.id, restaurantId: data['restaurantId'] ?? '', name: data['name'] ?? '', role: data['role'] ?? '', username: data['username'] ?? '', password: data['password'] ?? '', appRole: data['appRole'] ?? 'employee');
   }
 }
 
