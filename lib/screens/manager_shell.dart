@@ -592,7 +592,7 @@ class _ManagerShellState extends State<ManagerShell> {
   // (settings map on the tenant doc, with sensible defaults when unset).
   Future<bool> _complianceOk(BuildContext ctx, EmployeeData emp, DateTime date, int startMin, int endMin) async {
     final tenantDoc = await FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).get();
-    final settings = (tenantDoc.data()?['settings'] ?? {}) as Map<String, dynamic>;
+    final settings = (tenantDoc.data()?['settings'] as Map<String, dynamic>?) ?? {};
     final maxDay = (settings['maxHoursPerDay'] ?? 10) as num;
     final maxConsec = (settings['maxConsecutiveDays'] ?? 6) as num;
     final minRest = (settings['minRestHours'] ?? 11) as num;

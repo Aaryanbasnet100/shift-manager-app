@@ -47,7 +47,7 @@ class _AdminShellState extends State<AdminShell> {
 
   void _loadSettings() async {
     final doc = await FirebaseFirestore.instance.collection('restaurants').doc(widget.workspaceId).get();
-    final s = (doc.data()?['settings'] ?? {}) as Map<String, dynamic>;
+    final s = (doc.data()?['settings'] as Map<String, dynamic>?) ?? {};
     _maxDayCtrl.text = '${s['maxHoursPerDay'] ?? 10}';
     _maxConsecCtrl.text = '${s['maxConsecutiveDays'] ?? 6}';
     _minRestCtrl.text = '${s['minRestHours'] ?? 11}';
